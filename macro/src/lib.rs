@@ -1,24 +1,35 @@
 
 extern crate darling;
 extern crate proc_macro;
+use darling::FromMeta;
 use self::proc_macro::TokenStream;
 
 use quote::{format_ident, quote};
 // use syn::parse::{Parse, ParseStream, Result};
 // use syn::{parse_macro_input, DeriveInput, Expr, ExprArray};
-// use syn::{FnArg, ItemFn, Pat};
+ use syn::{FnArg, ItemFn, Pat};
 // use syn::{Lit, Meta, MetaNameValue};
-use syn::ItemFn;
+use syn::{AttributeArgs};
+
+
+#[derive(Debug, FromMeta)]
+struct MacroArgs {
+    #[darling(default)]
+    undo: bool,
+}
+
 
 
 #[proc_macro_attribute]
-pub fn state(_args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
+    let attr_args = syn::parse_macro_input!(args as AttributeArgs);
+
+    let args = match MacroArgs::from_list(&attr_args){
+        Ok(v) => v,
+        Err(e) => panic!("{}",e),
+    };
+
     let input_fn: ItemFn = syn::parse_macro_input!(input);
-    
-    // if !input_fn.sig.ident.to_string().ends_with("_atom") {
-    //     panic!("Your function name needs to end with _atom");
-    // }
-    
 
     let input_fn_string = input_fn.sig.ident.to_string();
     let atom_ident_string = input_fn_string.as_str();
@@ -31,26 +42,87 @@ pub fn state(_args: TokenStream, input: TokenStream) -> TokenStream {
     };
     let body = input_fn.block.clone();
 
-    let quote = quote!(
 
-        fn #atom_ident() -> AtomicStateAccess<#the_type>{
-            atom::<#the_type,_>(#atom_ident_string,|| {#body})
+    let template = input_fn.sig.inputs.iter().map(|_| "_{}").collect::<String>();
+
+
+    let inputs_iter = &mut input_fn.sig.inputs.iter();
+    let  mut inputs_iter_3 = inputs_iter.clone();
+
+    let  inputs_iter_2 = inputs_iter.clone();
+    
+    
+    let mut arg_quote = quote!();
+    if let Some(first_arg) = inputs_iter_3.next(){
+        arg_quote  = quote!(#first_arg);
+        for input in inputs_iter_3 {
+            arg_quote = quote!(#arg_quote, #input);
+        }
+    }   
+    
+    let mut template_quote = quote!();
+
+    let mut first = true;
+    for input in inputs_iter_2 {
+        let arg_name_ident = format_ident!("{}",get_arg_name(input));
+        if first {
+        template_quote = quote!(#arg_name_ident.to_string(),);
+        } else {
+            first = false;
+            template_quote = quote!(#template_quote,#arg_name_ident.to_string(),);
+        }
+    }
+
+    let id_string_quote = quote!(format!(#template, #template_quote)); 
+    
+    let atom_default_ident = format_ident!("{}_with_default", atom_ident);
+
+    let (atom_fn_ident,marker) = if args.undo {
+        (format_ident!("atom_with_undo"), format_ident!("AllowUndo"))
+    } else {
+        (format_ident!("atom"), format_ident!("NoUndo"))
+    };
+
+
+    quote!(
+
+        fn #atom_ident(#arg_quote) -> AtomStateAccess<#the_type,#marker,IsAnAtomState>{
+            
+            let atom_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
+
+            #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,|| {#body})
+        } 
+
+        fn #atom_default_ident<F:FnOnce() -> #the_type>(default : F, #arg_quote) -> AtomStateAccess<#the_type,#marker,IsAnAtomState>{
+            
+            let atom_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
+
+            #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,default)
         } 
         
-    );
+    ).into()
 
-    quote.into()
 }
 
 
-      
+fn get_arg_name(fnarg : &FnArg) -> String {
+    match fnarg {
+            FnArg::Receiver(_) => panic!("cannot be a method with self receiver"),
+            FnArg::Typed(t) => {
+                match &*t.pat {
+                    Pat::Ident(syn::PatIdent { ident, .. }) => ident.to_string(), //syn::parse_quote!(&#ident),
+                    _ => unimplemented!("Cannot get arg name"),
+                }
+            }
+    }
+}
+
+
 #[proc_macro_attribute]
 pub fn computed(_args: TokenStream, input: TokenStream) -> TokenStream {
+   
     let  input_fn: ItemFn = syn::parse_macro_input!(input);
     
-
-    
-
     let input_fn_string = input_fn.sig.ident.to_string();
     let atom_ident_string = input_fn_string.as_str();
 
@@ -62,16 +134,66 @@ pub fn computed(_args: TokenStream, input: TokenStream) -> TokenStream {
     };
     let body = input_fn.block.clone();
 
+    
+    let template = input_fn.sig.inputs.iter().map(|_| "_{}").collect::<String>();
+
+
+    let inputs_iter = &mut input_fn.sig.inputs.iter();
+    let  mut inputs_iter_3 = inputs_iter.clone();
+
+    let  inputs_iter_2 = inputs_iter.clone();
+    
+    
+    let mut arg_quote = quote!();
+    if let Some(first_arg) = inputs_iter_3.next(){
+        arg_quote  = quote!(#first_arg);
+        for input in inputs_iter_3 {
+            arg_quote = quote!(#arg_quote, #input);
+        }
+    }   
+    
+    let mut template_quote = quote!();
+
+    let mut first = true;
+    for input in inputs_iter_2 {
+        let arg_name_ident = format_ident!("{}",get_arg_name(input));
+        if first {
+        template_quote = quote!(#arg_name_ident.to_string(),);
+        } else {
+            first = false;
+            template_quote = quote!(#template_quote,#arg_name_ident.to_string(),);
+        }
+    }
+    
+    let atom_computed_ident = format_ident!("{}_computed", atom_ident);
+
+    let id_string_quote = quote!(format!(#template, #template_quote)); 
     let quote = quote!(
 
-        fn #atom_ident() -> AtomicStateAccess<#the_type>{
-            selector::<#the_type,_>(#atom_ident_string,|| {#body})
+        fn #atom_ident(#arg_quote) -> AtomStateAccess<#the_type,NoUndo,IsAComputedState>{
+            let atom_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
+            let mut computed =  computed::<#the_type,NoUndo,IsAComputedState>(&atom_ident,#atom_computed_ident );
+            computed
         } 
         
+        fn #atom_computed_ident(id: &str){
+            use std::cell::RefCell;
+            let getter = Getter::new(&id);
+             illicit::child_env!( RefCell<Getter> => RefCell::new(getter) ).enter(|| {
+                 let value = {#body};
+                 set_atom_state_with_id::<#the_type>(value,&id);
+             })
+        }
     );
 
     quote.into()
 }
+
+// move ||{
+//    
+//    
+//     
+// })
     // Names of the root and children view function arguments
     // Initially not underscore prefixed as assumed to be utilized.
 
@@ -1080,7 +1202,7 @@ pub fn computed(_args: TokenStream, input: TokenStream) -> TokenStream {
 // //     new_style
 // // }
 
-// // psuedo selectors:
+// // psuedo computeds:
 // //
 // // // Proc macro to generate psuedo methods for Style
 // // struct CreatePseudos {

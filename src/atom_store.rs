@@ -1,23 +1,20 @@
-use std::marker::PhantomData;
 use anymap::any::Any;
 use slotmap::{DenseSlotMap,DefaultKey, Key, SecondaryMap};
-// use std::collections::hash_map::DefaultHasher;
-// use std::collections::HashSet;
-// use std::hash::{Hash, Hasher};
 use std::collections::HashMap;
+
 
 #[derive(Debug)]
 
 pub struct Getter{
-    pub selector_key: String,
-    pub atomic_state_accessors: Vec<String>,
+    pub computed_key: String,
+    pub atom_state_accessors: Vec<String>,
 }
 
 impl Getter {
-    pub fn new(selector_key : &str) -> Getter {
+    pub fn new(computed_key : &str) -> Getter {
         Getter{
-            selector_key: selector_key.to_string(),
-            atomic_state_accessors:vec![],
+            computed_key: computed_key.to_string(),
+            atom_state_accessors:vec![],
         }
     }
 }
@@ -25,60 +22,59 @@ impl Getter {
 
 
 
-pub struct Selector<T,F> 
-    where F: FnOnce() 
+#[derive(Clone)]
+pub struct Computed
 {
-    pub func: F,
-    pub _phantom_data: PhantomData<T>,
-
-}
-
-pub trait CalcSelector {
-    fn calc(&self);
-}
-impl <T,F> CalcSelector for Selector<T,F>  
-    where F: FnOnce() -> () + Clone
-{
-    fn calc(&self){
-        (self.func.clone())();
-    }
+    pub func: fn(&str)->(),
 }
 
 
-pub struct AtomicStore {
+
+pub struct AtomStore {
     pub id_to_key_map: HashMap<String, DefaultKey>,
     pub primary_slotmap: DenseSlotMap<DefaultKey, String>,
     pub anymap: anymap::Map<dyn Any>,
-    // pub selector_graph: DenseSlotMap<DefaultKey, StoreNode>,
+    // pub computed_graph: DenseSlotMap<DefaultKey, StoreNode>,
     
-    // pub selector_funcs: HashMap<String, Box<dyn CalcSelector>>,
+    // pub computed_funcs: HashMap<String, Box<dyn CalcComputed>>,
 }
 
-impl AtomicStore {
-    pub(crate) fn new() -> AtomicStore {
-        AtomicStore {
+impl AtomStore {
+    pub(crate) fn new() -> AtomStore {
+        AtomStore {
             id_to_key_map: HashMap::new(),
             primary_slotmap: DenseSlotMap::new(),
             anymap: anymap::Map::new(),
             
-            // selector_graph: DenseSlotMap::new(),
+            // computed_graph: DenseSlotMap::new(),
             
-            // selector_funcs: HashMap::new(), // this probably needs to be a secondary map
+            // computed_funcs: HashMap::new(), // this probably needs to be a secondary map
         }
     }
 
-pub fn new_selector(&mut self, selector_sm_key: DefaultKey, func: Box<dyn CalcSelector>){
+//     println!("adding dep, {} {}", dep , computed_key);
+//     let dep_sm_key = if let Some(dep_sm_key) = self.id_to_key_map.get(dep){
+//         dep_sm_key.clone()
 
-    // let dep_sm_key = self.selector_id_to_key_map.get(dep).unwrap();
-    
 
+//     } else {
+//         panic!("adding dep, {} {}", dep , computed_key);
+//     };
+//     let computed_sm_key = if let Some(computed_sm_key)  = self.id_to_key_map.get(computed_key){
+//         computed_sm_key.clone()
+//     } else {
+//         panic!("adddding dep, {} {}", dep , computed_key);
+// };
 
-    if let Some(map) = self.get_mut_secondarymap::<Box<dyn CalcSelector>>(){
-        map.insert(selector_sm_key, func);
+pub fn new_computed(&mut self, computed_sm_key: &str, func: Computed){
+    let key = self.id_to_key_map.get(computed_sm_key).unwrap().clone();
+    if let Some(map) = self.get_mut_secondarymap::<Computed>(){
+        
+        map.insert(key, func);
         
     } else {
-        let mut sm: SecondaryMap<DefaultKey, Box<dyn CalcSelector>> = SecondaryMap::new();
-        sm.insert(selector_sm_key, func);
+        let mut sm: SecondaryMap<DefaultKey, Computed> = SecondaryMap::new();
+        sm.insert(key, func);
         self.anymap.insert(sm);
     }
 
@@ -96,46 +92,52 @@ pub fn new_selector(&mut self, selector_sm_key: DefaultKey, func: Box<dyn CalcSe
     }
 
 
-    pub fn add_dependency(&mut self,dep:&str, selector_key:&str){
-        // println!("adding dep, {} {}", dep , selector_key);
-        let dep_sm_key = self.id_to_key_map.get(dep).unwrap().clone();
-        let selector_sm_key = self.id_to_key_map.get(selector_key).unwrap().clone();
+    pub fn add_dependency(&mut self,source_id:&str, computed_id:&str){
+        
+       
+        // println!("adding dep, {} {}", dep , computed_key);
+        let source_sm_key = self.id_to_key_map.get(source_id).unwrap().clone();
+        let computed_sm_key = self.id_to_key_map.get(computed_id).unwrap().clone();
+        
+        // if dep == "todo_input_state_" && computed_key =="add_todo_" {
+        //     panic!("cannot find {:#?} for id {} and computed_key {:#?}",dep, computed_key, computed_sm_key);
+        //     }
 
-        if let Some(map) = &mut self.get_mut_secondarymap::<Vec<DefaultKey>>(){
-            if let Some(nodes) = map.get_mut(dep_sm_key) {
-                if !nodes.contains(&selector_sm_key) {
-                    nodes.push(selector_sm_key)
+        let map = &mut self.get_mut_secondarymap::<Vec<DefaultKey>>().unwrap();
+        
+            if let Some(nodes) = map.get_mut(source_sm_key) {
+                if !nodes.contains(&computed_sm_key) {
+                    nodes.push(computed_sm_key)
                 }
-                } else {
-                    map.insert(dep_sm_key, vec![selector_sm_key]);
-                }
-            // println!("{:#?}",map);
-        } else {
-            self.register_secondarymap::<Vec<DefaultKey>>();
-        }
+            } else {
+                map.insert(source_sm_key, vec![computed_sm_key]);
+            }
+            
+        
+        
 
-        // if let Some(graph_node) = self.selector_graph.get_mut(dep)
+        // if let Some(graph_node) = self.computed_graph.get_mut(dep)
 
 
         // let dependency = self.remove_state_with_id(current_id)
 
-        // let dep_key = self.selector_id_to_key_map.get(dep).unwrap();
+        // let dep_key = self.computed_id_to_key_map.get(dep).unwrap();
         
 
-        // let selector_store_node =  StoreNode::Selector(selector);
+        // let computed_store_node =  StoreNode::Computed(computed);
             
-        // set_state_with_id::<StoreNode>()(  selector_data_store_node, dep);
+        // set_state_with_id::<StoreNode>()(  computed_data_store_node, dep);
 
 
-        // if let Some(selector_key) = self.selector_id_to_key_map.get(selector) {
-        //     if let Some(entry) = self.selector_graph.get_mut(*selector_key){
+        // if let Some(computed_key) = self.computed_id_to_key_map.get(computed) {
+        //     if let Some(entry) = self.computed_graph.get_mut(*computed_key){
         //     entry.1.push(*dep_key);
         //     }
         // } else {
-        //     let selector_key = self.selector_graph.insert(
-        //         (selector.to_string(), vec![])
+        //     let computed_key = self.computed_graph.insert(
+        //         (computed.to_string(), vec![])
         //     );
-        //     self.selector_id_to_key_map.insert(selector.to_string(), selector_key);
+        //     self.computed_id_to_key_map.insert(computed.to_string(), computed_key);
         // }
 
     }
@@ -149,7 +151,7 @@ pub fn new_selector(&mut self, selector_sm_key: DefaultKey, func: Box<dyn CalcSe
         }
     }
 
-    pub(crate) fn get_state_with_id<T: 'static>(
+    pub fn get_state_with_id<T: 'static>(
         &self,
         current_id: &str,
     ) -> Option<&T> {
@@ -196,26 +198,37 @@ pub fn new_selector(&mut self, selector_sm_key: DefaultKey, func: Box<dyn CalcSe
     //     }
     // }
 
-    pub(crate) fn clone_dep_funcs_for_id(&mut self, id: &str)-> Vec<(String, Box<dyn CalcSelector + 'static> )>{
+    pub(crate) fn clone_dep_funcs_for_id(&mut self, id: &str)-> Vec<(String, Computed )>{
+        
+        // let computed_keys  = if let Some(computed_keys) = self.get_state_with_id::<Vec<DefaultKey>>(id){
+        //     computed_keys.clone()
+        // } else {
+        //     vec![]
+        // };
 
-        let selector_keys  = if let Some(selector_keys) = self.get_state_with_id::<Vec<DefaultKey>>(id){
-            selector_keys.clone()
-        } else {
-            vec![]
-        };
-
-    
-        selector_keys.iter().filter_map(|key|  {
-            let id = self.primary_slotmap.get(*key).cloned().unwrap();
-            if let Some(existing_secondary_map) = self.get_mut_secondarymap::<Box<dyn CalcSelector>>() {
+        let  computed_keys = self.get_state_with_id::<Vec<DefaultKey>>(id).cloned();
+        
+         if let Some(computed_keys) = &computed_keys {
+        
+        computed_keys.iter().filter_map(|key|  {
+            
+            if let Some(existing_secondary_map) = self.get_mut_secondarymap::<Computed>() {
                 
-                // log!("aboute to remove {}",id);
-               Some((id.to_string(), existing_secondary_map.remove(*key).unwrap()))
+                if let Some( computed) =  existing_secondary_map.get(*key).cloned(){
+                
+               Some((self.primary_slotmap.get(*key).unwrap().clone(),computed))
+                } else {
+                    panic!("cannot find {:#?} for id {}",key, id);
+                }
             } else {
                 None
             }
-        }).collect::<Vec<(String,Box<dyn CalcSelector>)>>()
-
+        }).collect::<Vec<(String,Computed)>>()
+        }
+        else {
+            vec![]
+        }    
+    
     }
 
     pub(crate) fn set_state_with_id<T: 'static>(&mut self, data: T, current_id: &str) {
@@ -251,7 +264,7 @@ pub fn new_selector(&mut self, selector_sm_key: DefaultKey, func: Box<dyn CalcSe
         self.anymap.get::<SecondaryMap<DefaultKey, T>>()
     }
 
-    fn get_mut_secondarymap<T: 'static>(&mut self) -> Option<&mut SecondaryMap<DefaultKey, T>> {
+    pub fn get_mut_secondarymap<T: 'static>(&mut self) -> Option<&mut SecondaryMap<DefaultKey, T>> {
         self.anymap.get_mut::<SecondaryMap<DefaultKey, T>>()
     }
 

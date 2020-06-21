@@ -1,7 +1,7 @@
 pub mod prelude;
-mod atomic_state_access;
-mod atomic_state_functions;
-mod atomic_store;
+mod atom_state_access;
+mod atom_state_functions;
+mod atom_store;
 pub use prelude::*;
 
 #[cfg(test)]

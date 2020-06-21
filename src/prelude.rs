@@ -25,15 +25,15 @@
 ///     this function was run
 ///
 ///  StateAccess - the access struct that enables a state to be udated or retrieved
-pub use atom_macros::{state, computed};
-
-pub use crate::atomic_state_access::{ChangedAtomicState, CloneAtomicState, AtomicStateAccess};
-pub use crate::atomic_state_functions::{atom, selector,get,
-    clone_atomic_state_with_id, 
-    set_atomic_state_with_id,
-    atomic_state_exists_for_id, update_atomic_state_with_id,  use_atomic_state_current,
+pub use atom_macros::{atom, computed};
+pub use crate::atom_store::{Getter,Computed};
+pub use crate::atom_state_access::{ChangedAtomState, CloneAtomState, IsAnAtomState,IsAComputedState, AllowUndo, NoUndo, OverloadedUpdateStateAccess,AtomStateAccess};
+pub use crate::atom_state_functions::{ATOM_STORE,atom,UndoVec,computed,link_state,
+    clone_atom_state_with_id, 
+    set_atom_state_with_id,
+    atom_state_exists_for_id, update_atom_state_with_id, atom_with_undo
 };
 
 
-// pub use crate::atomic_state::{OverloadedGeneralLookUp,AtomicStore, atom, selector};
+// pub use crate::atom_state::{OverloadedGeneralLookUp,AtomStore, atom, computed};
 

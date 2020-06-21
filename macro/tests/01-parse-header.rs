@@ -47,13 +47,13 @@ impl std::fmt::Display for Pos
     }
 }
 
-// fn use_a_number()-> AtomicStateAccess<i32>{
+// fn use_a_number()-> AtomStateAccess<i32>{
 //     atom::<u32>("a_number_state", || 3)
 // }
 
-// fn use_add_five()-> AtomicStateAccess<i32> {
+// fn use_add_five()-> AtomStateAccess<i32> {
 
-//     selector::<u32,_>("add_five", ||{
+//     computed::<u32,_>("add_five", ||{
 //         let count = get::<u32>("a_number_state");
 //         count + 5
 //     })
