@@ -3,7 +3,7 @@ use slotmap::{DenseSlotMap,DefaultKey, Key, SecondaryMap};
 use std::collections::HashMap;
 
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 
 pub struct Getter{
     pub computed_key: String,
@@ -22,11 +22,28 @@ impl Getter {
 
 
 
+// // #[derive(Clone)]
+// struct InverseTarget{
+//     target:String,
+//     source: PhantomData<I>,
+//     target: PhantomData<T>
+// }
+
 #[derive(Clone)]
 pub struct Computed
 {
     pub func: fn(&str)->(),
 }
+
+trait MaBox<I> : Fn(I) -> (){}
+
+#[derive(Clone)]
+pub struct InverseTarget<I>
+{
+    pub func: fn(I)->(),
+}
+
+
 
 
 
@@ -66,6 +83,8 @@ impl AtomStore {
 //         panic!("adddding dep, {} {}", dep , computed_key);
 // };
 
+
+
 pub fn new_computed(&mut self, computed_sm_key: &str, func: Computed){
     let key = self.id_to_key_map.get(computed_sm_key).unwrap().clone();
     if let Some(map) = self.get_mut_secondarymap::<Computed>(){
@@ -90,6 +109,75 @@ pub fn new_computed(&mut self, computed_sm_key: &str, func: Computed){
         let map = &mut self.get_mut_secondarymap::<Vec<DefaultKey>>().unwrap();
         map.insert(dep_sm_key, vec![]);
     }
+
+    pub fn remove_dependency(&mut self,source_id:&str, computed_id:&str){
+
+  
+        // println!("adding dep, {} {}", dep , computed_key);
+        let source_sm_key = self.id_to_key_map.get(source_id).unwrap().clone();
+        let computed_sm_key = self.id_to_key_map.get(computed_id).unwrap().clone();
+        
+        // if dep == "todo_input_state_" && computed_key =="add_todo_" {
+        //     panic!("cannot find {:#?} for id {} and computed_key {:#?}",dep, computed_key, computed_sm_key);
+        //     }
+
+        let map = &mut self.get_mut_secondarymap::<Vec<DefaultKey>>().unwrap();
+        
+            if let Some(nodes) = map.get_mut(source_sm_key) {
+                nodes.retain(|n| *n != computed_sm_key);
+            } else {
+                panic!("Trying to remove a from a state which does not exit")
+            }
+    }
+
+
+        // // println!("adding dep, {} {}", dep , computed_key);
+        // let source_sm_key = self.id_to_key_map.get(source_id).unwrap().clone();
+        // let computed_sm_key = self.id_to_key_map.get(computed_id).unwrap().clone();
+        
+        // // if dep == "todo_input_state_" && computed_key =="add_todo_" {
+        // //     panic!("cannot find {:#?} for id {} and computed_key {:#?}",dep, computed_key, computed_sm_key);
+        // //     }
+
+        // let map = &mut self.get_mut_secondarymap::<Vec<DefaultKey>>().unwrap();
+        
+        //     if let Some(nodes) = map.get_mut(source_sm_key) {
+        //         if !nodes.contains(&computed_sm_key) {
+        //             nodes.push(computed_sm_key)
+        //         }
+        //     } else {
+        //         map.insert(source_sm_key, vec![computed_sm_key]);
+        //     }
+            
+        
+        
+
+        // if let Some(graph_node) = self.computed_graph.get_mut(dep)
+
+
+        // let dependency = self.remove_state_with_id(current_id)
+
+        // let dep_key = self.computed_id_to_key_map.get(dep).unwrap();
+        
+
+        // let computed_store_node =  StoreNode::Computed(computed);
+            
+        // set_state_with_id::<StoreNode>()(  computed_data_store_node, dep);
+
+
+        // if let Some(computed_key) = self.computed_id_to_key_map.get(computed) {
+        //     if let Some(entry) = self.computed_graph.get_mut(*computed_key){
+        //     entry.1.push(*dep_key);
+        //     }
+        // } else {
+        //     let computed_key = self.computed_graph.insert(
+        //         (computed.to_string(), vec![])
+        //     );
+        //     self.computed_id_to_key_map.insert(computed.to_string(), computed_key);
+        // }
+
+    // }
+
 
 
     pub fn add_dependency(&mut self,source_id:&str, computed_id:&str){

@@ -1,5 +1,5 @@
 use crate::atom_state_access::{*, AtomStateAccess};
-use crate::atom_store::{ Computed,Getter,AtomStore};
+use crate::atom_store::{ InverseTarget, Computed,Getter,AtomStore};
 use std::cell::RefCell;
 
 // use slotmap::{DenseSlotMap,DefaultKey, Key, SecondaryMap, SlotMap};
@@ -30,7 +30,7 @@ pub fn atom<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data_fn: F)  -
                 .borrow_mut().add_atom(current_id);
         })
     }
-    AtomStateAccess::new(current_id)
+    AtomStateAccess::new(current_id, None)
 }
 
 // 
@@ -46,7 +46,8 @@ pub fn atom<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data_fn: F)  -
 //
 pub fn computed<T:Clone + 'static,U,A>(
     current_id: &str, 
-    data_fn: fn(&str)->()) -> AtomStateAccess<T,NoUndo,IsAComputedState> {
+    data_fn: fn(&str)->(),
+    inverse_fn : Option<fn(T)->()>) -> AtomStateAccess<T,NoUndo,IsAComputedState> {
 
     if !atom_state_exists_for_id::<T>(current_id) {
         ATOM_STORE.with(|store_refcell| {
@@ -64,17 +65,26 @@ pub fn computed<T:Clone + 'static,U,A>(
         };
 
         ((computed.func).clone())(current_id);
+
+        // if let Some(inverse_fn) = inverse_fn {
+        //     let inv_computed = InverseTarget{
+        //         func: inverse_fn,
+        //     };
+        // }
+
+
         
-        ATOM_STORE.with(|store_refcell| {
-            
+        
+        ATOM_STORE.with(|store_refcell| {   
             store_refcell
                 .borrow_mut()
                 .new_computed( current_id, computed);
         });
+
     }
 
 
-    AtomStateAccess::<T,NoUndo,IsAComputedState>::new(current_id)
+    AtomStateAccess::<T,NoUndo,IsAComputedState>::new(current_id,inverse_fn)
 }
 
 
@@ -104,11 +114,33 @@ pub fn atom_with_undo<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data
                 .borrow_mut().add_atom(current_id);
         })
     }
-    AtomStateAccess::new(current_id)
+    AtomStateAccess::new(current_id, None)
 }
 
+pub fn unlink_dead_links(id: &str){
+    let getter = illicit::Env::get::<RefCell<Getter>>().unwrap();
+    if atom_state_exists_for_id::<Getter>(id) {
+    read_atom_state_with_id::<Getter,_,()>(id, |old_getter| {
+        
+        let ids_to_remove = old_getter.atom_state_accessors.iter().filter(|a_id| !getter.borrow().atom_state_accessors.contains(a_id));
+        for id_to_remove in ids_to_remove {
+            ATOM_STORE.with(|store_refcell| {
+                store_refcell
+                    .borrow_mut()
+                    .remove_dependency(id_to_remove,id);
+            })
+        }
+    }
+    ) } else {
+        set_atom_state_with_id::<Getter>(getter.borrow().clone(), id)
+    }
+
+}
+
+
 pub fn link_state<T,U,A>(access : AtomStateAccess<T,U,A>) -> T where T:Clone + 'static{
-    let getter =   illicit::Env::get::<RefCell<Getter>>().unwrap();
+    
+    let getter = illicit::Env::get::<RefCell<Getter>>().unwrap();
     getter.borrow_mut().atom_state_accessors.push(access.id.clone());
 
     ATOM_STORE.with(|store_refcell| {
@@ -122,12 +154,30 @@ pub fn link_state<T,U,A>(access : AtomStateAccess<T,U,A>) -> T where T:Clone + '
 
 
 
+// <T: 'static, F: FnOnce(&T) -> R, R>(id: &str, func: F) -> R {
+pub fn link_state_with<T: 'static,U,A,F: FnOnce(&T)-> R,R >(access : AtomStateAccess<T,U,A>, func:F) -> R {
+    let getter =   illicit::Env::get::<RefCell<Getter>>().unwrap();
+    getter.borrow_mut().atom_state_accessors.push(access.id.clone());
+
+    ATOM_STORE.with(|store_refcell| {
+        store_refcell
+            .borrow_mut()
+            .add_dependency(&access.id, &getter.borrow().computed_key);
+    });
+
+    read_atom_state_with_id(&access.id, func)
+}
+
+
+
+
 pub fn set_atom_state_with_id_with_undo<T: 'static>(data: T, current_id: &str) where T:Clone {
     let item = clone_atom_state_with_id::<T>(current_id).expect("inital state needs to be present");
     let mut  undo_vec = remove_atom_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
     undo_vec.0.push(item);
     set_atom_state_with_id(undo_vec, current_id) ;
     set_atom_state_with_id(data, current_id);
+    
 }
 
 
@@ -163,17 +213,6 @@ pub fn remove_atom_state_with_id<T: 'static>(id: &str) -> Option<T> {
             .remove_state_with_id::<T>(id)
     })
 }
-
-// Provides mutable access to the stored state type T.
-//
-// Example:
-//
-// ```
-// update_state_with_topo_id::<Vec<String>>( topo::Id::current(), |v|
-//     v.push("foo".to_string()
-// )
-
-//
 
 #[derive(Clone)]
 pub struct UndoVec<T>(pub Vec<T>);

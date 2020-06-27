@@ -14,6 +14,7 @@ pub  enum IsAComputedState{}
 // #[derive(Debug)]
 pub struct AtomStateAccess<T,U,A> {
     pub id: String,
+    pub inverse_fn: Option<fn(T)->()>,
     
     pub _phantom_data_stored_type: PhantomData<T>,
     pub _phantom_data_undo : PhantomData<U>,
@@ -30,6 +31,7 @@ impl<T,U,A> Clone for AtomStateAccess<T,U,A> {
     fn clone(&self) -> AtomStateAccess<T,U,A> {
         AtomStateAccess::<T,U,A> {
             id: self.id.clone(),
+            inverse_fn: self.inverse_fn.clone(),
             _phantom_data_stored_type: PhantomData::<T>,
             _phantom_data_undo : PhantomData::<U>,
             _phantom_data_accessor_type : PhantomData::<A>,
@@ -41,9 +43,10 @@ impl<T,U,A> AtomStateAccess<T,U,A>
 where
     T: 'static,
 {
-    pub fn new(id: &str) -> AtomStateAccess<T,U,A> {
+    pub fn new(id: &str, inverse_fn: Option<fn(T)->()>) -> AtomStateAccess<T,U,A> {
         AtomStateAccess {
             id: id.to_string(),
+            inverse_fn,
             _phantom_data_stored_type: PhantomData,
             _phantom_data_undo: PhantomData,
             _phantom_data_accessor_type: PhantomData,
@@ -55,12 +58,17 @@ where
         self.overloaded_set(value);
     }
 
+
     pub fn remove(self) -> Option<T> {
         remove_atom_state_with_id(&self.id)
     }
 
     pub fn delete(self) {
         self.remove();
+    }
+
+    pub fn setit() {
+        
     }
 
 
@@ -151,6 +159,27 @@ where T:Clone + 'static,
     }
 }
 
+
+
+impl <T> OverloadedUpdateStateAccess<T> for AtomStateAccess<T,NoUndo,IsAComputedState>
+where T:Clone + 'static,
+{
+    fn overloaded_undo(&self){
+        panic!("You cannot undo a computed state!")
+    }
+
+    fn overloaded_update<F: FnOnce(&mut T) -> ()>(&self, _func: F) {
+       panic!("You cannot update a computed function")
+    }
+
+    fn overloaded_set(self, value: T) {
+        if let Some(inverse_fn) = self.inverse_fn {
+            inverse_fn(value)
+        } else {
+            panic!("You cannot set computed state with an inverse function being set ")
+        }
+    }
+}
 // If the underlying stored type is Clone and PartialEq
 // `changed()` will return true the first time called and then false
 // if called again with the same content.
