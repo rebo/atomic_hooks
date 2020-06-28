@@ -1,6 +1,8 @@
 use crate::atom_state_access::{*, AtomStateAccess};
-use crate::atom_store::{ InverseTarget, Computed,Getter,AtomStore};
+use crate::atom_store::{  Reaction,Getter,AtomStore};
 use std::cell::RefCell;
+use std::rc::Rc;
+use seed::{*,prelude};
 
 // use slotmap::{DenseSlotMap,DefaultKey, Key, SecondaryMap, SlotMap};
 
@@ -30,24 +32,24 @@ pub fn atom<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data_fn: F)  -
                 .borrow_mut().add_atom(current_id);
         })
     }
-    AtomStateAccess::new(current_id, None)
+    AtomStateAccess::new(current_id)
 }
 
 // 
-//  Constructs a T computed state accessor. T is stored keyed to the provided String id.
-//  The accessor always references this id. Typically computed values are auto
-//  created based on changes to their dependencies which could be other computed values or an
+//  Constructs a T reaction state accessor. T is stored keyed to the provided String id.
+//  The accessor always references this id. Typically reaction values are auto
+//  created based on changes to their dependencies which could be other reaction values or an
 //  atom state.
 //
-//   The passed closure is run whenever a dependency of the computed state has been updated.
+//   The passed closure is run whenever a dependency of the reaction state has been updated.
 // 
 //
-// Typically this is created via the #[computed] attribute macro
+// Typically this is created via the #[reaction] attribute macro
 //
-pub fn computed<T:Clone + 'static,U,A>(
+pub fn reaction<T:Clone + 'static,U,A,F: Fn(&str)->() + 'static>(
     current_id: &str, 
-    data_fn: fn(&str)->(),
-    inverse_fn : Option<fn(T)->()>) -> AtomStateAccess<T,NoUndo,IsAComputedState> {
+    data_fn: F,
+    ) -> AtomStateAccess<T,NoUndo,IsAReactionState> {
 
     if !atom_state_exists_for_id::<T>(current_id) {
         ATOM_STORE.with(|store_refcell| {
@@ -60,31 +62,32 @@ pub fn computed<T:Clone + 'static,U,A>(
         });
         
     
-        let computed = Computed{
-            func: data_fn,
+        let reaction = Reaction{
+            func: Rc::new(data_fn),
         };
+ 
+        ATOM_STORE.with(|store_refcell| {   
+            store_refcell
+                .borrow_mut()
+                .new_reaction( current_id, reaction.clone());
+        });
 
-        ((computed.func).clone())(current_id);
+        (reaction.func.clone())(current_id);
 
         // if let Some(inverse_fn) = inverse_fn {
-        //     let inv_computed = InverseTarget{
+        //     let inv_reaction = InverseTarget{
         //         func: inverse_fn,
         //     };
         // }
 
 
         
-        
-        ATOM_STORE.with(|store_refcell| {   
-            store_refcell
-                .borrow_mut()
-                .new_computed( current_id, computed);
-        });
+       
 
     }
 
 
-    AtomStateAccess::<T,NoUndo,IsAComputedState>::new(current_id,inverse_fn)
+    AtomStateAccess::<T,NoUndo,IsAReactionState>::new(current_id)
 }
 
 
@@ -114,7 +117,7 @@ pub fn atom_with_undo<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data
                 .borrow_mut().add_atom(current_id);
         })
     }
-    AtomStateAccess::new(current_id, None)
+    AtomStateAccess::new(current_id)
 }
 
 pub fn unlink_dead_links(id: &str){
@@ -138,7 +141,7 @@ pub fn unlink_dead_links(id: &str){
 }
 
 
-pub fn link_state<T,U,A>(access : AtomStateAccess<T,U,A>) -> T where T:Clone + 'static{
+pub fn observe<T,U,A>(access : AtomStateAccess<T,U,A>) -> T where T:Clone + 'static{
     
     let getter = illicit::Env::get::<RefCell<Getter>>().unwrap();
     getter.borrow_mut().atom_state_accessors.push(access.id.clone());
@@ -146,7 +149,7 @@ pub fn link_state<T,U,A>(access : AtomStateAccess<T,U,A>) -> T where T:Clone + '
     ATOM_STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
-            .add_dependency(&access.id, &getter.borrow().computed_key);
+            .add_dependency(&access.id, &getter.borrow().reaction_key);
     });
 
     clone_atom_state_with_id::<T>(&access.id).unwrap()
@@ -155,14 +158,14 @@ pub fn link_state<T,U,A>(access : AtomStateAccess<T,U,A>) -> T where T:Clone + '
 
 
 // <T: 'static, F: FnOnce(&T) -> R, R>(id: &str, func: F) -> R {
-pub fn link_state_with<T: 'static,U,A,F: FnOnce(&T)-> R,R >(access : AtomStateAccess<T,U,A>, func:F) -> R {
+pub fn observe_with<T: 'static,U,A,F: FnOnce(&T)-> R,R >(access : AtomStateAccess<T,U,A>, func:F) -> R {
     let getter =   illicit::Env::get::<RefCell<Getter>>().unwrap();
     getter.borrow_mut().atom_state_accessors.push(access.id.clone());
 
     ATOM_STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
-            .add_dependency(&access.id, &getter.borrow().computed_key);
+            .add_dependency(&access.id, &getter.borrow().reaction_key);
     });
 
     read_atom_state_with_id(&access.id, func)
@@ -207,6 +210,7 @@ pub fn clone_atom_state_with_id<T: 'static + Clone>(id: &str) -> Option<T> {
 }
 
 pub fn remove_atom_state_with_id<T: 'static>(id: &str) -> Option<T> {
+    
     ATOM_STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
@@ -236,18 +240,19 @@ pub fn update_atom_state_with_id_with_undo<T: 'static, F: FnOnce(&mut T) -> ()>(
     //we need to get the associated data with this key
     
     
-    execute_computed_nodes(id);
+    execute_reaction_nodes(id);
 }
 
-fn execute_computed_nodes(id: &str) {
-    let ids_computeds = ATOM_STORE.with(|refcell_store|{
+fn execute_reaction_nodes(id: &str) {
+    let ids_reactions = ATOM_STORE.with(|refcell_store|{
         let mut borrow = refcell_store.borrow_mut();
         borrow.clone_dep_funcs_for_id(id)
     });
 
-    for (key,computed) in ids_computeds {
-        (computed.func)(&key);
-        execute_computed_nodes(&key);
+    for (key,reaction) in &ids_reactions {
+        let cloned_reaction = reaction.clone();
+        (cloned_reaction.func.clone())(key);
+        execute_reaction_nodes(&key);
     }
 
 }
@@ -257,14 +262,16 @@ fn execute_computed_nodes(id: &str) {
 pub fn update_atom_state_with_id<T: 'static, F: FnOnce(&mut T) -> ()>(id: &str, func: F) {
     let mut item = remove_atom_state_with_id::<T>(id)
         .expect("You are trying to update a type state that doesnt exist in this context!");
-
+    
     func(&mut item);
+    
 
     set_atom_state_with_id(item, id);
-
+    
     //we need to get the associated data with this key
     
-    execute_computed_nodes(id);
+    execute_reaction_nodes(id);
+    
 
 }
 

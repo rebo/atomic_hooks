@@ -16,7 +16,7 @@ fn b_pos() -> Pos {
     Pos(0.,0.)
 }
 
-#[computed]
+#[reaction]
 fn a_b_distance() -> f64 {
     let a = get(a_pos());
     let b = get(b_pos());
@@ -53,7 +53,7 @@ impl std::fmt::Display for Pos
 
 // fn use_add_five()-> AtomStateAccess<i32> {
 
-//     computed::<u32,_>("add_five", ||{
+//     reaction::<u32,_>("add_five", ||{
 //         let count = get::<u32>("a_number_state");
 //         count + 5
 //     })

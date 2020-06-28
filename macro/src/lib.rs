@@ -21,7 +21,7 @@ struct MacroArgs {
 
 
 #[derive(Debug, FromMeta)]
-struct ComputedMacroArgs {
+struct ReactionMacroArgs {
     #[darling(default)]
     inverse : String,
 }
@@ -91,8 +91,6 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
     let atom_default_ident = format_ident!("{}_with_default", atom_ident);
     
     let reset_atom_ident = format_ident!("reset_{}", atom_ident);
-    let reverse_atom_ident = format_ident!("reverse_{}", atom_ident);
-
     
 
     let (atom_fn_ident,marker) = if args.undo {
@@ -107,8 +105,7 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
 
         fn #atom_ident(#arg_quote) -> AtomStateAccess<#the_type,#marker,IsAnAtomState>{
             let atom_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
-            let atom_reset_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
-        
+          
             #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,|| {
                 #body         
             })
@@ -146,25 +143,9 @@ fn get_arg_name(fnarg : &FnArg) -> String {
 
 
 #[proc_macro_attribute]
-pub fn computed(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
    
     let input_fn: ItemFn = syn::parse_macro_input!(input);
-    let attr_args = syn::parse_macro_input!(args as AttributeArgs);
-    
-    let args = match ComputedMacroArgs::from_list(&attr_args){
-        Ok(v) => v,
-        Err(e) => panic!("{}",e),
-    };
-
-    let quo = if !args.inverse.is_empty() {
-        let fn_name = format_ident!("{}", args.inverse);
-        quote!(
-            Some(#fn_name)
-        )        
-    } else {
-        quote!(None)
-    };
-
     
     let input_fn_string = input_fn.sig.ident.to_string();
     let atom_ident_string = input_fn_string.as_str();
@@ -208,30 +189,35 @@ pub fn computed(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     }
     
-    let atom_computed_ident = format_ident!("{}_computed", atom_ident);
 
     let id_string_quote = quote!(format!(#template, #template_quote)); 
     let quote = quote!(
 
-        fn #atom_ident(#arg_quote) -> AtomStateAccess<#the_type,NoUndo,IsAComputedState>{
+        fn #atom_ident(#arg_quote) -> AtomStateAccess<#the_type,NoUndo,IsAReactionState>{
             let atom_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
-            let mut computed =  computed::<#the_type,NoUndo,IsAComputedState>(&atom_ident,#atom_computed_ident,#quo);
-            computed
-        } 
-        
-        
-        fn #atom_computed_ident(id: &str){
-            use std::cell::RefCell;
-            let getter = Getter::new(&id);
-             illicit::child_env!( RefCell<Getter> => RefCell::new(getter) ).enter(|| {
-                let mut existing_state = remove_atom_state_with_id::<#the_type>(&id);
-                let value = {#body};
-                set_atom_state_with_id::<#the_type>(value,&id);
-                // we need to remove dependencies that do nto exist anymore
-                unlink_dead_links(&id);
-             })
+           
+           
+            if !atom_state_exists_for_id::<#the_type>(&atom_ident){
+            let atom_ident2 = atom_ident.clone();
+            
+            
+            let func = move |_stre: &str| {
+                let getter = Getter::new(&atom_ident2.clone());
+                illicit::child_env!( std::cell::RefCell<Getter> => std::cell::RefCell::new(getter) ).enter(|| {
+                    // let mut existing_state = remove_atom_state_with_id::<#the_type>(&atom_ident2.clone());
+                    let value = {#body};
+                    set_atom_state_with_id::<#the_type>(value,&atom_ident2.clone());
+                    // we need to remove dependencies that do nto exist anymore
+                    unlink_dead_links(&atom_ident2.clone());
+                })
+            };
 
+            // func(&atom_ident);
 
+            reaction::<#the_type,NoUndo,IsAReactionState,_>(&atom_ident.clone(),func)
+            } else {
+                AtomStateAccess::<#the_type,NoUndo,IsAReactionState>::new(&atom_ident)                 
+            }
         }
     );
 
@@ -241,7 +227,7 @@ pub fn computed(args: TokenStream, input: TokenStream) -> TokenStream {
 
 
 #[proc_macro_attribute]
-pub fn set_computed(_args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn set_reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
     
     let input_fn: ItemFn = syn::parse_macro_input!(input);
 
@@ -251,10 +237,6 @@ pub fn set_computed(_args: TokenStream, input: TokenStream) -> TokenStream {
     let atom_ident = format_ident!("{}", atom_ident_string);
 
     let body = input_fn.block.clone();
-
-
-    
-
 
     let inputs_iter = &mut input_fn.sig.inputs.iter();
     let  mut inputs_iter_3 = inputs_iter.clone();
