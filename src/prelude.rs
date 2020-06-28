@@ -30,7 +30,7 @@ pub use crate::atom_store::{Getter,Reaction};
 pub use crate::atom_state_access::{ChangedAtomState, CloneAtomState, IsAnAtomState,IsAReactionState, AllowUndo, NoUndo, OverloadedUpdateStateAccess,AtomStateAccess};
 pub use crate::atom_state_functions::{ATOM_STORE,atom,UndoVec,reaction,observe,observe_with,
     clone_atom_state_with_id, 
-    set_atom_state_with_id,
+    set_inert_atom_state_with_id,
     atom_state_exists_for_id, update_atom_state_with_id, atom_with_undo,remove_atom_state_with_id,unlink_dead_links
 };
 

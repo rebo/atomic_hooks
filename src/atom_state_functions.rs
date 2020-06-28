@@ -26,7 +26,7 @@ pub fn atom<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data_fn: F)  -
     
     // we do not need to re-initalize the atom if it already has been stored.
     if !atom_state_exists_for_id::<T>(current_id) {
-        set_atom_state_with_id::<T>(data_fn(), current_id);
+        set_inert_atom_state_with_id::<T>(data_fn(), current_id);
         ATOM_STORE.with(|store_refcell| {
             store_refcell
                 .borrow_mut().add_atom(current_id);
@@ -102,7 +102,7 @@ pub fn undo_atom_state<T: 'static + Clone, AllowUndo,IsAnAtomState>(current_id: 
         update_atom_state_with_id(current_id,|t| *t = item);
         
     }
-    set_atom_state_with_id(undo_vec, current_id) ;
+    set_inert_atom_state_with_id(undo_vec, current_id) ;
 
 }
 
@@ -110,8 +110,8 @@ pub fn atom_with_undo<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data
     
     if !atom_state_exists_for_id::<T>(current_id) {
         let item = data_fn();
-        set_atom_state_with_id::<T>(item.clone(), current_id);
-        set_atom_state_with_id(UndoVec::<T>(vec![item]), current_id);
+        set_inert_atom_state_with_id::<T>(item.clone(), current_id);
+        set_inert_atom_state_with_id(UndoVec::<T>(vec![item]), current_id);
         ATOM_STORE.with(|store_refcell| {
             store_refcell
                 .borrow_mut().add_atom(current_id);
@@ -135,7 +135,7 @@ pub fn unlink_dead_links(id: &str){
         }
     }
     ) } else {
-        set_atom_state_with_id::<Getter>(getter.borrow().clone(), id)
+        set_inert_atom_state_with_id::<Getter>(getter.borrow().clone(), id)
     }
 
 }
@@ -174,13 +174,38 @@ pub fn observe_with<T: 'static,U,A,F: FnOnce(&T)-> R,R >(access : AtomStateAcces
 
 
 
+pub fn set_inert_atom_state_with_id_with_undo<T: 'static>(data: T, current_id: &str) where T:Clone {
+    let item = clone_atom_state_with_id::<T>(current_id).expect("inital state needs to be present");
+    let mut  undo_vec = remove_atom_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
+    undo_vec.0.push(item);
+    set_inert_atom_state_with_id(undo_vec, current_id) ;
+    set_inert_atom_state_with_id(data, current_id);
+    
+}
+
+
+
+
+
 pub fn set_atom_state_with_id_with_undo<T: 'static>(data: T, current_id: &str) where T:Clone {
     let item = clone_atom_state_with_id::<T>(current_id).expect("inital state needs to be present");
     let mut  undo_vec = remove_atom_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
     undo_vec.0.push(item);
-    set_atom_state_with_id(undo_vec, current_id) ;
-    set_atom_state_with_id(data, current_id);
+    set_inert_atom_state_with_id(undo_vec, current_id) ;
+    set_inert_atom_state_with_id(data, current_id);
+    execute_reaction_nodes(current_id);
     
+}
+
+
+
+/// Sets the state of type T keyed to the given TopoId
+pub fn set_inert_atom_state_with_id<T: 'static>(data: T, current_id: &str) {
+    ATOM_STORE.with(|store_refcell| {
+        store_refcell
+            .borrow_mut()
+            .set_state_with_id::<T>(data, current_id)
+    })
 }
 
 
@@ -190,8 +215,11 @@ pub fn set_atom_state_with_id<T: 'static>(data: T, current_id: &str) {
         store_refcell
             .borrow_mut()
             .set_state_with_id::<T>(data, current_id)
-    })
+    });
+
+    execute_reaction_nodes(current_id);
 }
+
 
 
 pub fn atom_state_exists_for_id<T: 'static>(id: &str) -> bool {
@@ -231,11 +259,11 @@ pub fn update_atom_state_with_id_with_undo<T: 'static, F: FnOnce(&mut T) -> ()>(
         .expect("You are trying to update a type state that doesnt exist in this context!");
     undo_vec.0.push(item.clone());
 
-    set_atom_state_with_id(undo_vec, id);
+    set_inert_atom_state_with_id(undo_vec, id);
     
 
     func(&mut item);
-    set_atom_state_with_id(item, id);
+    set_inert_atom_state_with_id(item, id);
 
     //we need to get the associated data with this key
     
@@ -266,7 +294,7 @@ pub fn update_atom_state_with_id<T: 'static, F: FnOnce(&mut T) -> ()>(id: &str, 
     func(&mut item);
     
 
-    set_atom_state_with_id(item, id);
+    set_inert_atom_state_with_id(item, id);
     
     //we need to get the associated data with this key
     
@@ -279,6 +307,6 @@ pub fn read_atom_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(id: &str, func
     let item = remove_atom_state_with_id::<T>(id)
         .expect("You are trying to read a type state that doesnt exist in this context!");
     let read = func(&item);
-    set_atom_state_with_id(item, id);
+    set_inert_atom_state_with_id(item, id);
     read
 }

@@ -54,9 +54,16 @@ where
     }
 
     // stores a value of type T in a backing Store
+    pub fn insert_set(self, value: T) where Self :OverloadedUpdateStateAccess<T>{
+        self.overloaded_inert_set(value);
+    }
+
+
+    // stores a value of type T in a backing Store
     pub fn set(self, value: T) where Self :OverloadedUpdateStateAccess<T>{
         self.overloaded_set(value);
     }
+
 
 
     pub fn remove(self) -> Option<T> {
@@ -119,7 +126,8 @@ pub trait  OverloadedUpdateStateAccess<T> where T:'static {
     fn overloaded_update<F: FnOnce(&mut T) -> ()>(&self, func: F);
        
     fn overloaded_undo(&self);
-    fn overloaded_set(self, value: T);      
+    fn overloaded_inert_set(self, value: T);      
+    fn overloaded_set(self, value: T);
 }
 
 
@@ -133,6 +141,10 @@ impl <T> OverloadedUpdateStateAccess<T> for AtomStateAccess<T,NoUndo,IsAnAtomSta
 
         update_atom_state_with_id(&self.id, func);
 
+    }
+
+    fn overloaded_inert_set(self, value: T) {
+        set_inert_atom_state_with_id(value, &self.id);
     }
 
     fn overloaded_set(self, value: T) {
@@ -151,6 +163,10 @@ where T:Clone + 'static,
 
     fn overloaded_update<F: FnOnce(&mut T) -> ()>(&self, func: F) {
         update_atom_state_with_id_with_undo(&self.id, func);
+    }
+
+    fn overloaded_inert_set(self, value: T) {
+        set_inert_atom_state_with_id_with_undo(value, &self.id);
     }
 
     fn overloaded_set(self, value: T) {
@@ -180,7 +196,7 @@ where
                 self.get_with(|current| &old.0==current )
             )
         } else {
-            set_atom_state_with_id(ChangedWrapper(self.get()), &self.id);
+            set_inert_atom_state_with_id(ChangedWrapper(self.get()), &self.id);
             true
         }
     }

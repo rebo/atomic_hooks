@@ -194,6 +194,8 @@ pub fn reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
     let quote = quote!(
 
         fn #atom_ident(#arg_quote) -> AtomStateAccess<#the_type,NoUndo,IsAReactionState>{
+            // atom_state::illicit::hide<Point()>();
+            // topo::call(|| ... )
             let atom_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
            
            
@@ -206,7 +208,7 @@ pub fn reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
                 illicit::child_env!( std::cell::RefCell<Getter> => std::cell::RefCell::new(getter) ).enter(|| {
                     // let mut existing_state = remove_atom_state_with_id::<#the_type>(&atom_ident2.clone());
                     let value = {#body};
-                    set_atom_state_with_id::<#the_type>(value,&atom_ident2.clone());
+                    set_inert_atom_state_with_id::<#the_type>(value,&atom_ident2.clone());
                     // we need to remove dependencies that do nto exist anymore
                     unlink_dead_links(&atom_ident2.clone());
                 })
