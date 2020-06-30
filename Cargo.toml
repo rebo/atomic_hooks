@@ -15,5 +15,6 @@ typemap = "0.3.3"
 atom_macros = {path="./macro"}
 # wasm-bindgen = "^0.2.62"
 seed = "0.7.0"
+topo = "=0.9.4"
 # [dependencies.web-sys]
 # version = "^0.3.39"

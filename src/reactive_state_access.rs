@@ -1,4 +1,4 @@
-use crate::atom_state_functions::*;
+use crate::reactive_state_functions::*;
 use std::marker::PhantomData;
 
 
@@ -12,7 +12,7 @@ pub  enum IsAReactionState{}
 ///  state of the stored type
 ///
 // #[derive(Debug)]
-pub struct AtomStateAccess<T,U,A> {
+pub struct ReactiveStateAccess<T,U,A> {
     pub id: String,
     
     
@@ -21,15 +21,15 @@ pub struct AtomStateAccess<T,U,A> {
     pub _phantom_data_accessor_type : PhantomData<A>,
 }
 
-impl<T,U,A> std::fmt::Debug for AtomStateAccess<T,U,A> {
+impl<T,U,A> std::fmt::Debug for ReactiveStateAccess<T,U,A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({:#?})", self.id)
     }
 }
 
-impl<T,U,A> Clone for AtomStateAccess<T,U,A> {
-    fn clone(&self) -> AtomStateAccess<T,U,A> {
-        AtomStateAccess::<T,U,A> {
+impl<T,U,A> Clone for ReactiveStateAccess<T,U,A> {
+    fn clone(&self) -> ReactiveStateAccess<T,U,A> {
+        ReactiveStateAccess::<T,U,A> {
             id: self.id.clone(),
             
             _phantom_data_stored_type: PhantomData::<T>,
@@ -39,12 +39,12 @@ impl<T,U,A> Clone for AtomStateAccess<T,U,A> {
     }
 }
 
-impl<T,U,A> AtomStateAccess<T,U,A>
+impl<T,U,A> ReactiveStateAccess<T,U,A>
 where
     T: 'static,
 {
-    pub fn new(id: &str) -> AtomStateAccess<T,U,A> {
-        AtomStateAccess {
+    pub fn new(id: &str) -> ReactiveStateAccess<T,U,A> {
+        ReactiveStateAccess {
             id: id.to_string(),
             
             _phantom_data_stored_type: PhantomData,
@@ -67,7 +67,7 @@ where
 
 
     pub fn remove(self) -> Option<T> {
-        remove_atom_state_with_id(&self.id)
+        remove_reactive_state_with_id(&self.id)
     }
 
     pub fn delete(self) {
@@ -88,16 +88,16 @@ where
     }
 
     pub fn state_exists(self) -> bool {
-        atom_state_exists_for_id::<T>(&self.id)
+        reactive_state_exists_for_id::<T>(&self.id)
     }
 
     pub fn get_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
-        read_atom_state_with_id(&self.id, func)
+        read_reactive_state_with_id(&self.id, func)
     }
 }
 
 
-// If the stored type is clone, then implement clone for AtomStateAccess
+// If the stored type is clone, then implement clone for ReactiveStateAccess
 pub trait CloneAtomState<T>
 where
     T: Clone + 'static,
@@ -106,17 +106,17 @@ where
     fn soft_get(&self) -> Option<T>;
 }
 
-impl<T,U,A> CloneAtomState<T> for AtomStateAccess<T,U,A>
+impl<T,U,A> CloneAtomState<T> for ReactiveStateAccess<T,U,A>
 where
     T: Clone + 'static,
 {
     /// returns a clone of the stored state panics if not stored.
     fn get(&self) -> T {
-        clone_atom_state_with_id::<T>(&self.id).expect("state should be present")
+        clone_reactive_state_with_id::<T>(&self.id).expect("state should be present")
     }
 
     fn soft_get(&self) -> Option<T> {
-        clone_atom_state_with_id::<T>(&self.id)
+        clone_reactive_state_with_id::<T>(&self.id)
     }
 }
 
@@ -131,7 +131,7 @@ pub trait  OverloadedUpdateStateAccess<T> where T:'static {
 }
 
 
-impl <T> OverloadedUpdateStateAccess<T> for AtomStateAccess<T,NoUndo,IsAnAtomState> where T:'static
+impl <T> OverloadedUpdateStateAccess<T> for ReactiveStateAccess<T,NoUndo,IsAnAtomState> where T:'static
 {
     fn overloaded_undo(&self){
         panic!("cannot undo this atom is not undoable");
@@ -153,7 +153,7 @@ impl <T> OverloadedUpdateStateAccess<T> for AtomStateAccess<T,NoUndo,IsAnAtomSta
 }
 
 
-impl <T> OverloadedUpdateStateAccess<T> for AtomStateAccess<T,AllowUndo,IsAnAtomState>
+impl <T> OverloadedUpdateStateAccess<T> for ReactiveStateAccess<T,AllowUndo,IsAnAtomState>
 where T:Clone + 'static,
 {
     fn overloaded_undo(&self){
@@ -186,13 +186,13 @@ pub trait ChangedAtomState {
     fn changed(&self) -> bool;
 }
 
-impl<T,U,A> ChangedAtomState for AtomStateAccess<T,U,A>
+impl<T,U,A> ChangedAtomState for ReactiveStateAccess<T,U,A>
 where
     T: Clone + 'static + PartialEq,
 {
     fn changed(&self) -> bool {
-        if atom_state_exists_for_id::<ChangedWrapper<T>>(&self.id){
-            read_atom_state_with_id::<ChangedWrapper<T>,_,_>(&self.id, |old|
+        if reactive_state_exists_for_id::<ChangedWrapper<T>>(&self.id){
+            read_reactive_state_with_id::<ChangedWrapper<T>,_,_>(&self.id, |old|
                 self.get_with(|current| &old.0==current )
             )
         } else {
@@ -201,14 +201,13 @@ where
         }
     }
 }
-// If the underlying type provides display then so does the AtomStateAccess
-impl<T,U,A> std::fmt::Display for AtomStateAccess<T,U,A>
+// If the underlying type provides display then so does the ReactiveStateAccess
+impl<T,U,A> std::fmt::Display for ReactiveStateAccess<T,U,A>
 where
     T: std::fmt::Display + 'static,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let val = self.get_with(|t| format!("{}", t));
-        write!(f, "{}", val)
+        self.get_with(|t| write!(f, "{}", t))
     }
 }
 
@@ -217,7 +216,7 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Sub;
 
-impl<T,U,A> Add for AtomStateAccess<T,U,A>
+impl<T,U,A> Add for ReactiveStateAccess<T,U,A>
 where
     T: Copy + Add<Output = T> + 'static,
 {
@@ -228,7 +227,7 @@ where
     }
 }
 
-impl<T,U,A> Mul for AtomStateAccess<T,U,A>
+impl<T,U,A> Mul for ReactiveStateAccess<T,U,A>
 where
     T: Copy + Mul<Output = T> + 'static,
 {
@@ -239,7 +238,7 @@ where
     }
 }
 
-impl<T,U,A> Div for AtomStateAccess<T,U,A>
+impl<T,U,A> Div for ReactiveStateAccess<T,U,A>
 where
     T: Copy + Div<Output = T> + 'static,
 {
@@ -250,7 +249,7 @@ where
     }
 }
 
-impl<T,U,A> Sub for AtomStateAccess<T,U,A>
+impl<T,U,A> Sub for ReactiveStateAccess<T,U,A>
 where
     T: Copy + Sub<Output = T> + 'static,
 {

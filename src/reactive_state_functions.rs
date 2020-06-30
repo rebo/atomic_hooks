@@ -1,13 +1,13 @@
-use crate::atom_state_access::{*, AtomStateAccess};
-use crate::atom_store::{  Reaction,Getter,AtomStore};
+use crate::reactive_state_access::{*, ReactiveStateAccess};
+use crate::reactive_store::{  Reaction,Context,AtomStore};
 use std::cell::RefCell;
 use std::rc::Rc;
-use seed::{*,prelude};
+// use seed::{*,prelude};
 
 // use slotmap::{DenseSlotMap,DefaultKey, Key, SecondaryMap, SlotMap};
 
 thread_local! {
-    pub static ATOM_STORE: RefCell<AtomStore> = RefCell::new(AtomStore::new());
+    pub static REACTIVE_STORE: RefCell<AtomStore> = RefCell::new(AtomStore::new());
 }
 
 // 
@@ -22,17 +22,17 @@ thread_local! {
 //
 // Typically this is created via the #[atom] attribute macro
 //
-pub fn atom<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data_fn: F)  -> AtomStateAccess<T,U,IsAnAtomState> {
+pub fn atom<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data_fn: F)  -> ReactiveStateAccess<T,U,IsAnAtomState> {
     
     // we do not need to re-initalize the atom if it already has been stored.
-    if !atom_state_exists_for_id::<T>(current_id) {
+    if !reactive_state_exists_for_id::<T>(current_id) {
         set_inert_atom_state_with_id::<T>(data_fn(), current_id);
-        ATOM_STORE.with(|store_refcell| {
+        REACTIVE_STORE.with(|store_refcell| {
             store_refcell
                 .borrow_mut().add_atom(current_id);
         })
     }
-    AtomStateAccess::new(current_id)
+    ReactiveStateAccess::new(current_id)
 }
 
 // 
@@ -46,13 +46,13 @@ pub fn atom<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data_fn: F)  -
 //
 // Typically this is created via the #[reaction] attribute macro
 //
-pub fn reaction<T:Clone + 'static,U,A,F: Fn(&str)->() + 'static>(
+pub fn reaction<T:Clone + 'static,U,A,F: Fn()->() + 'static>(
     current_id: &str, 
     data_fn: F,
-    ) -> AtomStateAccess<T,NoUndo,IsAReactionState> {
+    ) -> ReactiveStateAccess<T,NoUndo,IsAReactionState> {
 
-    if !atom_state_exists_for_id::<T>(current_id) {
-        ATOM_STORE.with(|store_refcell| {
+    if !reactive_state_exists_for_id::<T>(current_id) {
+        REACTIVE_STORE.with(|store_refcell| {
 
             let key = store_refcell
                 .borrow_mut()
@@ -66,28 +66,18 @@ pub fn reaction<T:Clone + 'static,U,A,F: Fn(&str)->() + 'static>(
             func: Rc::new(data_fn),
         };
  
-        ATOM_STORE.with(|store_refcell| {   
+        REACTIVE_STORE.with(|store_refcell| {   
             store_refcell
                 .borrow_mut()
                 .new_reaction( current_id, reaction.clone());
         });
 
-        (reaction.func.clone())(current_id);
-
-        // if let Some(inverse_fn) = inverse_fn {
-        //     let inv_reaction = InverseTarget{
-        //         func: inverse_fn,
-        //     };
-        // }
-
-
-        
-       
+        (reaction.func.clone())();
 
     }
 
 
-    AtomStateAccess::<T,NoUndo,IsAReactionState>::new(current_id)
+    ReactiveStateAccess::<T,NoUndo,IsAReactionState>::new(current_id)
 }
 
 
@@ -95,7 +85,7 @@ pub fn reaction<T:Clone + 'static,U,A,F: Fn(&str)->() + 'static>(
 
 pub fn undo_atom_state<T: 'static + Clone, AllowUndo,IsAnAtomState>(current_id: &str){
     
-    let mut undo_vec = remove_atom_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
+    let mut undo_vec = remove_reactive_state_with_id::<UndoVec<T>>(current_id).expect("initial undo vec should be present but its not");
     
     if undo_vec.0.len() > 1 {
         let item =  undo_vec.0.pop().expect("type to exist");    
@@ -106,28 +96,28 @@ pub fn undo_atom_state<T: 'static + Clone, AllowUndo,IsAnAtomState>(current_id: 
 
 }
 
-pub fn atom_with_undo<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data_fn: F)  -> AtomStateAccess<T,AllowUndo,IsAnAtomState> where T:Clone + 'static{
+pub fn atom_with_undo<T: 'static , F: FnOnce() -> T, U,A>(current_id: &str, data_fn: F)  -> ReactiveStateAccess<T,AllowUndo,IsAnAtomState> where T:Clone + 'static{
     
-    if !atom_state_exists_for_id::<T>(current_id) {
+    if !reactive_state_exists_for_id::<T>(current_id) {
         let item = data_fn();
         set_inert_atom_state_with_id::<T>(item.clone(), current_id);
         set_inert_atom_state_with_id(UndoVec::<T>(vec![item]), current_id);
-        ATOM_STORE.with(|store_refcell| {
+        REACTIVE_STORE.with(|store_refcell| {
             store_refcell
                 .borrow_mut().add_atom(current_id);
         })
     }
-    AtomStateAccess::new(current_id)
+    ReactiveStateAccess::new(current_id)
 }
 
 pub fn unlink_dead_links(id: &str){
-    let getter = illicit::Env::get::<RefCell<Getter>>().unwrap();
-    if atom_state_exists_for_id::<Getter>(id) {
-    read_atom_state_with_id::<Getter,_,()>(id, |old_getter| {
+    let context = illicit::Env::get::<RefCell<Context>>().expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+    if reactive_state_exists_for_id::<Context>(id) {
+    read_reactive_state_with_id::<Context,_,()>(id, |old_context| {
         
-        let ids_to_remove = old_getter.atom_state_accessors.iter().filter(|a_id| !getter.borrow().atom_state_accessors.contains(a_id));
+        let ids_to_remove = old_context.reactive_state_accessors.iter().filter(|a_id| !context.borrow().reactive_state_accessors.contains(a_id));
         for id_to_remove in ids_to_remove {
-            ATOM_STORE.with(|store_refcell| {
+            REACTIVE_STORE.with(|store_refcell| {
                 store_refcell
                     .borrow_mut()
                     .remove_dependency(id_to_remove,id);
@@ -135,48 +125,48 @@ pub fn unlink_dead_links(id: &str){
         }
     }
     ) } else {
-        set_inert_atom_state_with_id::<Getter>(getter.borrow().clone(), id)
+        set_inert_atom_state_with_id::<Context>(context.borrow().clone(), id)
     }
 
 }
 
 
-pub fn observe<T,U,A>(access : AtomStateAccess<T,U,A>) -> T where T:Clone + 'static{
+pub fn observe<T,U,A>(access : ReactiveStateAccess<T,U,A>) -> T where T:Clone + 'static{
     
-    let getter = illicit::Env::get::<RefCell<Getter>>().unwrap();
-    getter.borrow_mut().atom_state_accessors.push(access.id.clone());
+    let context = illicit::Env::get::<RefCell<Context>>().expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+    context.borrow_mut().reactive_state_accessors.push(access.id.clone());
 
-    ATOM_STORE.with(|store_refcell| {
+    REACTIVE_STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
-            .add_dependency(&access.id, &getter.borrow().reaction_key);
+            .add_dependency(&access.id, &context.borrow().reaction_key);
     });
 
-    clone_atom_state_with_id::<T>(&access.id).unwrap()
+    clone_reactive_state_with_id::<T>(&access.id).unwrap()
 }
 
 
 
 // <T: 'static, F: FnOnce(&T) -> R, R>(id: &str, func: F) -> R {
-pub fn observe_with<T: 'static,U,A,F: FnOnce(&T)-> R,R >(access : AtomStateAccess<T,U,A>, func:F) -> R {
-    let getter =   illicit::Env::get::<RefCell<Getter>>().unwrap();
-    getter.borrow_mut().atom_state_accessors.push(access.id.clone());
+pub fn observe_with<T: 'static,U,A,F: FnOnce(&T)-> R,R >(access : ReactiveStateAccess<T,U,A>, func:F) -> R {
+    let context =   illicit::Env::get::<RefCell<Context>>().expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+    context.borrow_mut().reactive_state_accessors.push(access.id.clone());
 
-    ATOM_STORE.with(|store_refcell| {
+    REACTIVE_STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
-            .add_dependency(&access.id, &getter.borrow().reaction_key);
+            .add_dependency(&access.id, &context.borrow().reaction_key);
     });
 
-    read_atom_state_with_id(&access.id, func)
+    read_reactive_state_with_id(&access.id, func)
 }
 
 
 
 
 pub fn set_inert_atom_state_with_id_with_undo<T: 'static>(data: T, current_id: &str) where T:Clone {
-    let item = clone_atom_state_with_id::<T>(current_id).expect("inital state needs to be present");
-    let mut  undo_vec = remove_atom_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
+    let item = clone_reactive_state_with_id::<T>(current_id).expect("inital state needs to be present");
+    let mut  undo_vec = remove_reactive_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
     undo_vec.0.push(item);
     set_inert_atom_state_with_id(undo_vec, current_id) ;
     set_inert_atom_state_with_id(data, current_id);
@@ -188,8 +178,8 @@ pub fn set_inert_atom_state_with_id_with_undo<T: 'static>(data: T, current_id: &
 
 
 pub fn set_atom_state_with_id_with_undo<T: 'static>(data: T, current_id: &str) where T:Clone {
-    let item = clone_atom_state_with_id::<T>(current_id).expect("inital state needs to be present");
-    let mut  undo_vec = remove_atom_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
+    let item = clone_reactive_state_with_id::<T>(current_id).expect("inital state needs to be present");
+    let mut  undo_vec = remove_reactive_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
     undo_vec.0.push(item);
     set_inert_atom_state_with_id(undo_vec, current_id) ;
     set_inert_atom_state_with_id(data, current_id);
@@ -201,7 +191,7 @@ pub fn set_atom_state_with_id_with_undo<T: 'static>(data: T, current_id: &str) w
 
 /// Sets the state of type T keyed to the given TopoId
 pub fn set_inert_atom_state_with_id<T: 'static>(data: T, current_id: &str) {
-    ATOM_STORE.with(|store_refcell| {
+    REACTIVE_STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
             .set_state_with_id::<T>(data, current_id)
@@ -211,7 +201,7 @@ pub fn set_inert_atom_state_with_id<T: 'static>(data: T, current_id: &str) {
 
 /// Sets the state of type T keyed to the given TopoId
 pub fn set_atom_state_with_id<T: 'static>(data: T, current_id: &str) {
-    ATOM_STORE.with(|store_refcell| {
+    REACTIVE_STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
             .set_state_with_id::<T>(data, current_id)
@@ -222,14 +212,14 @@ pub fn set_atom_state_with_id<T: 'static>(data: T, current_id: &str) {
 
 
 
-pub fn atom_state_exists_for_id<T: 'static>(id: &str) -> bool {
-    ATOM_STORE.with(|store_refcell| store_refcell.borrow().state_exists_with_id::<T>(id))
+pub fn reactive_state_exists_for_id<T: 'static>(id: &str) -> bool {
+    REACTIVE_STORE.with(|store_refcell| store_refcell.borrow().state_exists_with_id::<T>(id))
 }
 
 
 /// Clones the state of type T keyed to the given TopoId
-pub fn clone_atom_state_with_id<T: 'static + Clone>(id: &str) -> Option<T> {
-    ATOM_STORE.with(|store_refcell| {
+pub fn clone_reactive_state_with_id<T: 'static + Clone>(id: &str) -> Option<T> {
+    REACTIVE_STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
             .get_state_with_id::<T>(id)
@@ -237,9 +227,9 @@ pub fn clone_atom_state_with_id<T: 'static + Clone>(id: &str) -> Option<T> {
     })
 }
 
-pub fn remove_atom_state_with_id<T: 'static>(id: &str) -> Option<T> {
+pub fn remove_reactive_state_with_id<T: 'static>(id: &str) -> Option<T> {
     
-    ATOM_STORE.with(|store_refcell| {
+    REACTIVE_STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
             .remove_state_with_id::<T>(id)
@@ -251,11 +241,11 @@ pub struct UndoVec<T>(pub Vec<T>);
 
 pub fn update_atom_state_with_id_with_undo<T: 'static, F: FnOnce(&mut T) -> ()>(id: &str, func: F) where T:Clone{
 
-    let mut item = remove_atom_state_with_id::<T>(id)
+    let mut item = remove_reactive_state_with_id::<T>(id)
         .expect("You are trying to update a type state that doesnt exist in this context!");
 
     
-    let mut undo_vec = remove_atom_state_with_id::<UndoVec<T>>(id)
+    let mut undo_vec = remove_reactive_state_with_id::<UndoVec<T>>(id)
         .expect("You are trying to update a type state that doesnt exist in this context!");
     undo_vec.0.push(item.clone());
 
@@ -272,14 +262,14 @@ pub fn update_atom_state_with_id_with_undo<T: 'static, F: FnOnce(&mut T) -> ()>(
 }
 
 fn execute_reaction_nodes(id: &str) {
-    let ids_reactions = ATOM_STORE.with(|refcell_store|{
+    let ids_reactions = REACTIVE_STORE.with(|refcell_store|{
         let mut borrow = refcell_store.borrow_mut();
         borrow.clone_dep_funcs_for_id(id)
     });
 
-    for (key,reaction) in &ids_reactions {
+    for (key,reaction)in &ids_reactions {
         let cloned_reaction = reaction.clone();
-        (cloned_reaction.func.clone())(key);
+        (cloned_reaction.func.clone())();
         execute_reaction_nodes(&key);
     }
 
@@ -288,7 +278,7 @@ fn execute_reaction_nodes(id: &str) {
 
 
 pub fn update_atom_state_with_id<T: 'static, F: FnOnce(&mut T) -> ()>(id: &str, func: F) {
-    let mut item = remove_atom_state_with_id::<T>(id)
+    let mut item = remove_reactive_state_with_id::<T>(id)
         .expect("You are trying to update a type state that doesnt exist in this context!");
     
     func(&mut item);
@@ -297,14 +287,12 @@ pub fn update_atom_state_with_id<T: 'static, F: FnOnce(&mut T) -> ()>(id: &str, 
     set_inert_atom_state_with_id(item, id);
     
     //we need to get the associated data with this key
-    
     execute_reaction_nodes(id);
-    
 
 }
 
-pub fn read_atom_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(id: &str, func: F) -> R {
-    let item = remove_atom_state_with_id::<T>(id)
+pub fn read_reactive_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(id: &str, func: F) -> R {
+    let item = remove_reactive_state_with_id::<T>(id)
         .expect("You are trying to read a type state that doesnt exist in this context!");
     let read = func(&item);
     set_inert_atom_state_with_id(item, id);

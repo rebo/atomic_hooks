@@ -1,42 +1,30 @@
 use anymap::any::Any;
 use slotmap::{DenseSlotMap,DefaultKey, Key, SecondaryMap};
 use std::collections::HashMap;
-use seed::*;
+// use seed::*;
 use std::rc::Rc;
 
-#[derive(Debug,Clone)]
 
-pub struct Getter{
+#[derive(Debug,Clone)]
+pub struct Context {
+    
     pub reaction_key: String,
-    pub atom_state_accessors: Vec<String>,
+    pub reactive_state_accessors: Vec<String>,
 }
 
-impl Getter {
-    pub fn new(reaction_key : &str) -> Getter {
-        Getter{
+impl Context {
+    pub fn new(reaction_key : &str) -> Context {
+        Context{
             reaction_key: reaction_key.to_string(),
-            atom_state_accessors:vec![],
+            reactive_state_accessors:vec![],
         }
     }
 }
 
 
-
-
-// // #[derive(Clone)]
-// struct InverseTarget{
-//     target:String,
-//     source: PhantomData<I>,
-//     target: PhantomData<T>
-// }
-
-
-
-
 #[derive(Clone)]
 pub struct Reaction {
-    // pub func: fn(&str)->(),
-    pub func: Rc<dyn Fn(&str) -> () + 'static>
+    pub func: Rc<dyn Fn() -> () + 'static>
 }
 
 pub struct AtomStore {

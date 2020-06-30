@@ -77,21 +77,22 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
         
         
         if first {
-        template_quote = quote!(#arg_name_ident.to_string(),);
+        template_quote = quote!(#arg_name_ident,);
         use_args_quote = quote!(#arg_name_ident,);
         } else {
             first = false;
-            template_quote = quote!(#template_quote,#arg_name_ident.to_string(),);
+            template_quote = quote!(#template_quote,#arg_name_ident,);
             use_args_quote = quote!(#use_args_quote, #arg_name_ident);
         }
     }
 
-    let id_string_quote = quote!(format!(#template, #template_quote)); 
+    let hash_quote = quote!( (#template_quote) );
     
     let atom_default_ident = format_ident!("{}_with_default", atom_ident);
     
     let reset_atom_ident = format_ident!("reset_{}", atom_ident);
     
+    let atom_atom = format!("{}_{}", template );
 
     let (atom_fn_ident,marker) = if args.undo {
         (format_ident!("atom_with_undo"), format_ident!("AllowUndo"))
@@ -99,28 +100,40 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
         (format_ident!("atom"), format_ident!("NoUndo"))
     };
 
-    
-
     quote!(
 
-        fn #atom_ident(#arg_quote) -> AtomStateAccess<#the_type,#marker,IsAnAtomState>{
-            let atom_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
-          
-            #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,|| {
-                #body         
+        fn #atom_ident(#arg_quote) -> ReactiveStateAccess<#the_type,#marker,IsAnAtomState>{
+            illicit::Env::hide::<topo::Point>();
+            topo::call(||{
+                let atom_root_id = CallSite::here(); // usize ..  unique to this file, this method, this line
+                
+                // let mut atom_ident : String;
+                // atom_ident = .to_string();
+                let atom_ident = format!(#atom_atom , module_path!(), #template_quote);
+
+
+                // let atom_ident = format!("{}_{}", #atom_ident_string, #id_string_quote);
+            
+                #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,|| {
+                    #body         
+                })
             })
         } 
 
-        fn #atom_default_ident<F:FnOnce() -> #the_type>( #arg_quote default : F ) -> AtomStateAccess<#the_type,#marker,IsAnAtomState>{
-            let atom_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
+        fn #atom_default_ident<F:FnOnce() -> #the_type>( #arg_quote default : F ) -> ReactiveStateAccess<#the_type,#marker,IsAnAtomState>{
+            let atom_ident = format!(#atom_atom , module_path!(), #template_quote);
+
             #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,default)
         } 
 
         fn #reset_atom_ident(#arg_quote){
-            #atom_ident(#use_args_quote).update(|v| {
-                 *v = {#body}   
-                }
-             );
+            illicit::Env::hide::<topo::Point>();
+            topo::call(||{
+                #atom_ident(#use_args_quote).update(|v| {
+                    *v = {#body}   
+                    }
+                );
+            })
          } 
   
         
@@ -182,45 +195,45 @@ pub fn reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
     for input in inputs_iter_2 {
         let arg_name_ident = format_ident!("{}",get_arg_name(input));
         if first {
-        template_quote = quote!(#arg_name_ident.to_string(),);
+        template_quote = quote!(#arg_name_ident,);
         } else {
             first = false;
-            template_quote = quote!(#template_quote,#arg_name_ident.to_string(),);
+            template_quote = quote!(#template_quote,#arg_name_ident,);
         }
     }
+
+    let atom_atom = format!("{}_{}_{}","{}",atom_ident_string,template );
     
 
-    let id_string_quote = quote!(format!(#template, #template_quote)); 
     let quote = quote!(
 
-        fn #atom_ident(#arg_quote) -> AtomStateAccess<#the_type,NoUndo,IsAReactionState>{
-            // atom_state::illicit::hide<Point()>();
-            // topo::call(|| ... )
-            let atom_ident = format!("{}_{}",#atom_ident_string,#id_string_quote);
-           
-           
-            if !atom_state_exists_for_id::<#the_type>(&atom_ident){
-            let atom_ident2 = atom_ident.clone();
+        fn #atom_ident(#arg_quote) -> ReactiveStateAccess<#the_type,NoUndo,IsAReactionState>{
+            illicit::Env::hide::<topo::Point>();
+            topo::call(||{
+                let atom_ident = format!(#atom_atom , module_path!(), #template_quote);
             
-            
-            let func = move |_stre: &str| {
-                let getter = Getter::new(&atom_ident2.clone());
-                illicit::child_env!( std::cell::RefCell<Getter> => std::cell::RefCell::new(getter) ).enter(|| {
-                    // let mut existing_state = remove_atom_state_with_id::<#the_type>(&atom_ident2.clone());
-                    let value = {#body};
-                    set_inert_atom_state_with_id::<#the_type>(value,&atom_ident2.clone());
-                    // we need to remove dependencies that do nto exist anymore
-                    unlink_dead_links(&atom_ident2.clone());
-                })
-            };
+                if !reactive_state_exists_for_id::<#the_type>(&atom_ident){
+                    let atom_ident2 = atom_ident.clone();
+                    
+                    
+                    let func = move || {
+                        let context = Context::new(&atom_ident2.clone());
+                        illicit::child_env!( std::cell::RefCell<Context> => std::cell::RefCell::new(context) ).enter(|| {
+                            // let mut existing_state = remove_reactive_state_with_id::<#the_type>(&atom_ident2.clone());
+                            let value = {#body};
+                            set_inert_atom_state_with_id::<#the_type>(value,&atom_ident2.clone());
+                            // we need to remove dependencies that do nto exist anymore
+                            unlink_dead_links(&atom_ident2.clone());
+                        })
+                    };
 
-            // func(&atom_ident);
-
-            reaction::<#the_type,NoUndo,IsAReactionState,_>(&atom_ident.clone(),func)
-            } else {
-                AtomStateAccess::<#the_type,NoUndo,IsAReactionState>::new(&atom_ident)                 
-            }
+                    reaction::<#the_type,NoUndo,IsAReactionState,_>(&atom_ident.clone(),func)
+                } else {
+                    ReactiveStateAccess::<#the_type,NoUndo,IsAReactionState>::new(&atom_ident)                 
+                }
+            })
         }
+        
     );
 
     quote.into()
@@ -228,71 +241,3 @@ pub fn reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
 
 
 
-#[proc_macro_attribute]
-pub fn set_reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
-    
-    let input_fn: ItemFn = syn::parse_macro_input!(input);
-
-    let input_fn_string = input_fn.sig.ident.to_string();
-    let atom_ident_string = input_fn_string.as_str();
-
-    let atom_ident = format_ident!("{}", atom_ident_string);
-
-    let body = input_fn.block.clone();
-
-    let inputs_iter = &mut input_fn.sig.inputs.iter();
-    let  mut inputs_iter_3 = inputs_iter.clone();
-
-    let  inputs_iter_2 = inputs_iter.clone();
-    
-    
-    let mut arg_quote = quote!();
-    if let Some(first_arg) = inputs_iter_3.next(){
-        arg_quote  = quote!(#first_arg);
-        for input in inputs_iter_3 {
-            arg_quote = quote!(#arg_quote, #input);
-        }
-    }   
-    
-    let mut template_quote = quote!();
-    let mut use_args_quote = quote!();
-
-    let mut first = true;
-    for input in inputs_iter_2 {
-        let arg_name_ident = format_ident!("{}",get_arg_name(input));
-        
-        
-        if first {
-        template_quote = quote!(#arg_name_ident.to_string(),);
-        use_args_quote = quote!(#arg_name_ident,);
-        } else {
-            first = false;
-            template_quote = quote!(#template_quote,#arg_name_ident.to_string(),);
-            use_args_quote = quote!(#use_args_quote, #arg_name_ident);
-        }
-    }
-
-    
-    
-    
-    
-    let reverse_atom_ident = format_ident!("set_{}", atom_ident);
-
-    // let (atom_fn_ident,marker) = if args.undo {
-    //     (format_ident!("atom_with_undo"), format_ident!("AllowUndo"))
-    // } else {
-    //     (format_ident!("atom"), format_ident!("NoUndo"))
-    // };
-
-    
-
-    quote!(
-    fn #reverse_atom_ident(#arg_quote){
-        #atom_ident(#use_args_quote).get_with(|value| {
-            #body
-        } )
-    }   
-
-    ).into()
-
-}
