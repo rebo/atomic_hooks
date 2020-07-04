@@ -3,6 +3,8 @@ name = "atomic_hooks"
 version = "0.1.0"
 authors = ["rebo"]
 edition = "2018"
+description = "Atomic Reative State and Local State Hooks"
+license = "Apache-2.0 OR MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
