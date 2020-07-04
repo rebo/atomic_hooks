@@ -16,7 +16,7 @@ path = "tests/progress.rs"
 # seed = "0.7.0"
 [dev-dependencies]
 trybuild = "1.0"
-atom_state = {path = "./.."}
+atomic_hooks = {path = "./.."}
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
