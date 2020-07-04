@@ -1,20 +1,27 @@
 #![feature(track_caller)]
-pub mod prelude;
+pub use atomic_hooks_macros::{atom, reaction};
+// storage
+mod store;
+
+// hooks
+mod state_access;
+mod hooks_state_functions;
+
+// reactive state
 mod reactive_state_access;
 mod reactive_state_functions;
-mod reactive_store;
-mod local_update_el;
-// mod helpers;
-// mod state_access;
-// mod state_functions;
-// mod store;
-// mod hybrid_store;
-// mod unmount;
 
+
+// helpers
+mod helpers;
+mod observable;
+// mod seed_integration;
+
+
+// public exports
+mod prelude;
 pub use prelude::*;
-
-
-
+pub mod unmount;
 
 #[cfg(test)]
 mod tests {

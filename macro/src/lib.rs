@@ -18,15 +18,11 @@ struct MacroArgs {
     undo: bool,
 }
 
-
-
 #[derive(Debug, FromMeta)]
 struct ReactionMacroArgs {
     #[darling(default)]
-    inverse : String,
+    always_run : bool,
 }
-
-
 
 #[proc_macro_attribute]
 pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -51,7 +47,7 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
     let body = input_fn.block.clone();
 
 
-    let template = input_fn.sig.inputs.iter().map(|_| "_{}").collect::<String>();
+    
 
 
     let inputs_iter = &mut input_fn.sig.inputs.iter();
@@ -86,13 +82,8 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     }
 
-    let hash_quote = quote!( (#template_quote) );
+    let hash_quote = quote!( (CallSite::here(), #template_quote) );
     
-    let atom_default_ident = format_ident!("{}_with_default", atom_ident);
-    
-    let reset_atom_ident = format_ident!("reset_{}", atom_ident);
-    
-    let atom_atom = format!("{}_{}", template );
 
     let (atom_fn_ident,marker) = if args.undo {
         (format_ident!("atom_with_undo"), format_ident!("AllowUndo"))
@@ -100,41 +91,62 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
         (format_ident!("atom"), format_ident!("NoUndo"))
     };
 
+
+    let update_with_undo= if args.undo {
+       quote!( set_inert_atom_state_with_id(UndoVec::<#the_type>(vec![value]), &__id); )
+    } else {
+       quote!()
+    };
+
+    let set_inert_with_undo= if args.undo {
+        quote!( set_inert_atom_state_with_id::<#the_type>(value.clone(),&__id ); )
+     } else {
+        quote!(set_inert_atom_state_with_id::<#the_type>(value,&__id );)
+     };
+
+
+    
     quote!(
 
-        fn #atom_ident(#arg_quote) -> ReactiveStateAccess<#the_type,#marker,IsAnAtomState>{
-            illicit::Env::hide::<topo::Point>();
-            topo::call(||{
-                let atom_root_id = CallSite::here(); // usize ..  unique to this file, this method, this line
-                
-                // let mut atom_ident : String;
-                // atom_ident = .to_string();
-                let atom_ident = format!(#atom_atom , module_path!(), #template_quote);
+        pub fn #atom_ident(#arg_quote) -> ReactiveStateAccess<#the_type,#marker,IsAnAtomState>{
+                let __id  = return_key_for_type_and_insert_if_required(#hash_quote);
+                let func = move || {
+                    topo::call(||{
+                        illicit::Env::hide::<topo::Point>();
+                        topo::call(||{
+
+                            let context = ReactiveContext::new(__id );
+                            illicit::child_env!( std::cell::RefCell<ReactiveContext> => std::cell::RefCell::new(context) ).enter(|| {
+
+                                let value = {#body};
+                                #set_inert_with_undo
+                                #update_with_undo
+                            })
 
 
-                // let atom_ident = format!("{}_{}", #atom_ident_string, #id_string_quote);
+                        })
+                    })
+                };
+
+                #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(__id ,func)
             
-                #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,|| {
-                    #body         
-                })
-            })
         } 
 
-        fn #atom_default_ident<F:FnOnce() -> #the_type>( #arg_quote default : F ) -> ReactiveStateAccess<#the_type,#marker,IsAnAtomState>{
-            let atom_ident = format!(#atom_atom , module_path!(), #template_quote);
+        // fn #atom_default_ident<F:FnOnce() -> #the_type>( #arg_quote default : F ) -> ReactiveStateAccess<#the_type,#marker,IsAnAtomState>{
+        //     let atom_ident = format!(#atom_atom , module_path!(), #template_quote);
 
-            #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,default)
-        } 
+        //     #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,default)
+        // } 
 
-        fn #reset_atom_ident(#arg_quote){
-            illicit::Env::hide::<topo::Point>();
-            topo::call(||{
-                #atom_ident(#use_args_quote).update(|v| {
-                    *v = {#body}   
-                    }
-                );
-            })
-         } 
+        // fn #reset_atom_ident(#arg_quote){
+        //     illicit::Env::hide::<topo::Point>();
+        //     topo::call(||{
+        //         #atom_ident(#use_args_quote).update(|v| {
+        //             *v = {#body}   
+        //             }
+        //         );
+        //     })
+        //  } 
   
         
     ).into()
@@ -156,8 +168,15 @@ fn get_arg_name(fnarg : &FnArg) -> String {
 
 
 #[proc_macro_attribute]
-pub fn reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
-   
+pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
+    let attr_args = syn::parse_macro_input!(args as AttributeArgs);
+
+    let args = match ReactionMacroArgs::from_list(&attr_args){
+        Ok(v) => v,
+        Err(e) => panic!("{}",e),
+    };
+
+
     let input_fn: ItemFn = syn::parse_macro_input!(input);
     
     let input_fn_string = input_fn.sig.ident.to_string();
@@ -170,10 +189,6 @@ pub fn reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
         syn::ReturnType::Type(_, the_type) => the_type.clone(),
     };
     let body = input_fn.block.clone();
-
-    
-    let template = input_fn.sig.inputs.iter().map(|_| "_{}").collect::<String>();
-
 
     let inputs_iter = &mut input_fn.sig.inputs.iter();
     let  mut inputs_iter_3 = inputs_iter.clone();
@@ -201,37 +216,46 @@ pub fn reaction(_args: TokenStream, input: TokenStream) -> TokenStream {
             template_quote = quote!(#template_quote,#arg_name_ident,);
         }
     }
+    let hash_quote = quote!( (CallSite::here(), #template_quote) );
 
-    let atom_atom = format!("{}_{}_{}","{}",atom_ident_string,template );
-    
+    let always_run_quote =  if args.always_run { quote!(_context.always_run = true;) } else {quote!()};
 
     let quote = quote!(
 
-        fn #atom_ident(#arg_quote) -> ReactiveStateAccess<#the_type,NoUndo,IsAReactionState>{
-            illicit::Env::hide::<topo::Point>();
-            topo::call(||{
-                let atom_ident = format!(#atom_atom , module_path!(), #template_quote);
+        pub fn #atom_ident<'_a>(#arg_quote) -> ReactiveStateAccess<#the_type,NoUndo,IsAReactionState>{
+          
+                let __id = return_key_for_type_and_insert_if_required(#hash_quote);
             
-                if !reactive_state_exists_for_id::<#the_type>(&atom_ident){
-                    let atom_ident2 = atom_ident.clone();
-                    
-                    
+                if !reactive_state_exists_for_id::<#the_type>(&__id ){
+                                    
                     let func = move || {
-                        let context = Context::new(&atom_ident2.clone());
-                        illicit::child_env!( std::cell::RefCell<Context> => std::cell::RefCell::new(context) ).enter(|| {
+                        topo::call(||{
+                        illicit::Env::hide::<topo::Point>();
+                        topo::call(||{
+
+
+                        let mut _context = ReactiveContext::new(__id );
+                        
+                        #always_run_quote
+
+                        illicit::child_env!( std::cell::RefCell<ReactiveContext> => std::cell::RefCell::new(_context) ).enter(|| {
                             // let mut existing_state = remove_reactive_state_with_id::<#the_type>(&atom_ident2.clone());
                             let value = {#body};
-                            set_inert_atom_state_with_id::<#the_type>(value,&atom_ident2.clone());
+                            set_inert_atom_state_with_id::<#the_type>(value,&__id );
                             // we need to remove dependencies that do nto exist anymore
-                            unlink_dead_links(&atom_ident2.clone());
+                            unlink_dead_links(&__id );
                         })
+                    })
+                })
+
+
                     };
 
-                    reaction::<#the_type,NoUndo,IsAReactionState,_>(&atom_ident.clone(),func)
+                    reaction::<#the_type,NoUndo,IsAReactionState,_>(__id ,func)
                 } else {
-                    ReactiveStateAccess::<#the_type,NoUndo,IsAReactionState>::new(&atom_ident)                 
+                    ReactiveStateAccess::<#the_type,NoUndo,IsAReactionState>::new(__id )                 
                 }
-            })
+            
         }
         
     );

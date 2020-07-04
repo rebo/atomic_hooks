@@ -1,7 +1,9 @@
+use crate::store::Reaction;
 use crate::reactive_state_functions::*;
 use std::marker::PhantomData;
-
-
+use crate::observable::Observable;
+use crate::store::StorageKey;
+// use seed::prelude::*;
 // marker types
 pub enum AllowUndo{}
 pub enum NoUndo{}
@@ -11,11 +13,10 @@ pub  enum IsAReactionState{}
 ///  Accessor struct that provides access to getting and setting the
 ///  state of the stored type
 ///
-// #[derive(Debug)]
+// #[derive(Copy)]
 pub struct ReactiveStateAccess<T,U,A> {
-    pub id: String,
-    
-    
+    pub id: StorageKey,
+
     pub _phantom_data_stored_type: PhantomData<T>,
     pub _phantom_data_undo : PhantomData<U>,
     pub _phantom_data_accessor_type : PhantomData<A>,
@@ -26,11 +27,11 @@ impl<T,U,A> std::fmt::Debug for ReactiveStateAccess<T,U,A> {
         write!(f, "({:#?})", self.id)
     }
 }
-
+// 
 impl<T,U,A> Clone for ReactiveStateAccess<T,U,A> {
     fn clone(&self) -> ReactiveStateAccess<T,U,A> {
         ReactiveStateAccess::<T,U,A> {
-            id: self.id.clone(),
+            id: self.id,
             
             _phantom_data_stored_type: PhantomData::<T>,
             _phantom_data_undo : PhantomData::<U>,
@@ -39,13 +40,16 @@ impl<T,U,A> Clone for ReactiveStateAccess<T,U,A> {
     }
 }
 
+
+impl<T,U,A> Copy for ReactiveStateAccess<T,U,A> {}
+
 impl<T,U,A> ReactiveStateAccess<T,U,A>
 where
     T: 'static,
 {
-    pub fn new(id: &str) -> ReactiveStateAccess<T,U,A> {
+    pub fn new(id: StorageKey) -> ReactiveStateAccess<T,U,A> {
         ReactiveStateAccess {
-            id: id.to_string(),
+            id,
             
             _phantom_data_stored_type: PhantomData,
             _phantom_data_undo: PhantomData,
@@ -82,10 +86,13 @@ where
     /// updates the stored state in place
     /// using the provided function
     pub fn update<F: FnOnce(&mut T) -> ()>(&self, func: F) where Self :OverloadedUpdateStateAccess<T>{
-        
-        self.overloaded_update( func);
-        
+        self.overloaded_update( func); 
     }
+
+    pub fn reset_to_default(&self) where Self :OverloadedUpdateStateAccess<T>{
+        self.overloaded_reset_to_default(); 
+    }
+
 
     pub fn state_exists(self) -> bool {
         reactive_state_exists_for_id::<T>(&self.id)
@@ -94,11 +101,25 @@ where
     pub fn get_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
         read_reactive_state_with_id(&self.id, func)
     }
+
+
+
+    pub fn on_update<F: FnOnce() -> R,R>(&self, func:F) -> Option<R> {
+        let mut recalc = false ;
+        self.observe_with(|_| recalc = true);
+        if recalc {
+            Some(func())
+        } else {
+            None
+        }
+    }
+
+
 }
 
 
 // If the stored type is clone, then implement clone for ReactiveStateAccess
-pub trait CloneAtomState<T>
+pub trait CloneReactiveState<T>
 where
     T: Clone + 'static,
 {
@@ -106,7 +127,7 @@ where
     fn soft_get(&self) -> Option<T>;
 }
 
-impl<T,U,A> CloneAtomState<T> for ReactiveStateAccess<T,U,A>
+impl<T,U,A> CloneReactiveState<T> for ReactiveStateAccess<T,U,A>
 where
     T: Clone + 'static,
 {
@@ -124,7 +145,7 @@ where
 // ensure that updates cause an undo to be appended.
 pub trait  OverloadedUpdateStateAccess<T> where T:'static {
     fn overloaded_update<F: FnOnce(&mut T) -> ()>(&self, func: F);
-       
+    fn overloaded_reset_to_default(&self);   
     fn overloaded_undo(&self);
     fn overloaded_inert_set(self, value: T);      
     fn overloaded_set(self, value: T);
@@ -136,6 +157,16 @@ impl <T> OverloadedUpdateStateAccess<T> for ReactiveStateAccess<T,NoUndo,IsAnAto
     fn overloaded_undo(&self){
         panic!("cannot undo this atom is not undoable");
     }
+
+
+    fn overloaded_reset_to_default(&self){
+        // execute_reaction_nodes(&self.id);
+        (clone_reactive_state_with_id::<Reaction>(&self.id).unwrap().func)();
+        execute_reaction_nodes(&self.id);
+    
+    }
+
+    
         
     fn overloaded_update<F: FnOnce(&mut T) -> ()>(&self, func: F) {
 
@@ -156,6 +187,12 @@ impl <T> OverloadedUpdateStateAccess<T> for ReactiveStateAccess<T,NoUndo,IsAnAto
 impl <T> OverloadedUpdateStateAccess<T> for ReactiveStateAccess<T,AllowUndo,IsAnAtomState>
 where T:Clone + 'static,
 {
+
+    fn overloaded_reset_to_default(&self){
+        (clone_reactive_state_with_id::<Reaction>(&self.id).unwrap().func)();
+        execute_reaction_nodes(&self.id);
+    }
+
     fn overloaded_undo(&self){
         
         undo_atom_state::<T,AllowUndo,IsAnAtomState>(&self.id)

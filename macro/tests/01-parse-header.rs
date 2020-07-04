@@ -1,6 +1,6 @@
 
 
-use atom_macros::*;
+use atomic_hooks_macros::*;
 use atom_state::*;
 
 #[derive(Clone)]
