@@ -1,9 +1,10 @@
-use crate::reactive_state_access::{*, ReactiveStateAccess};
+use crate::reactive_state_access:: ReactiveStateAccess;
 
 use crate::store::{ Reaction, ReactiveContext,Store, StorageKey, SlottedKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::hash::Hash;
+use crate::marker::*;
 // use seed::{*,prelude};
 
 
@@ -95,6 +96,40 @@ pub fn reaction<T:'static,U,A,F: Fn()->() + 'static>(
     ReactiveStateAccess::<T,NoUndo,IsAReactionState>::new(current_id)
 }
 
+pub fn computed<T:'static,U,A,F: Fn()->() + 'static>(
+    current_id: StorageKey, 
+    data_fn: F,
+    ) -> ReactiveStateAccess<T,NoUndo,IsAReactionState> {
+
+    if !reactive_state_exists_for_id::<T>(&current_id) {
+        STORE.with(|store_refcell| {
+
+            let key = store_refcell
+                .borrow_mut()
+                .primary_slotmap.insert(current_id);
+
+            store_refcell.borrow_mut().id_to_key_map.insert(current_id, key);
+        });
+        
+    
+        let reaction = Reaction{
+            func: Rc::new(data_fn),
+        };
+ 
+        STORE.with(|store_refcell| {   
+            store_refcell
+                .borrow_mut()
+                .new_reaction( &current_id, reaction.clone());
+        });
+
+        (reaction.func.clone())();
+
+    }
+
+
+    ReactiveStateAccess::<T,NoUndo,IsAReactionState>::new(current_id)
+}
+
 
 
 
@@ -134,6 +169,9 @@ pub fn atom_with_undo<T: 'static , F: Fn() -> () + 'static, U,A>(current_id: Sto
     }
     ReactiveStateAccess::new(current_id)
 }
+
+
+
 
 pub fn unlink_dead_links(id: &StorageKey){
     let context = illicit::Env::get::<RefCell<ReactiveContext>>().expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
@@ -292,11 +330,15 @@ pub fn read_reactive_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(id: &Stora
 }
 
 
-pub fn try_read_reactive_state_with_id<T: 'static, F: FnOnce(Option<&T>) -> R, R>(id: &StorageKey, func: F) -> R {
-    let item = remove_reactive_state_with_id::<T>(id);
-    let read = func(item.as_ref());
-    set_inert_atom_state_with_id(item, id);
-    read
+pub fn try_read_reactive_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(id: &StorageKey, func: F) -> Option<R> {
+    if let Some(item) = remove_reactive_state_with_id::<T>(id){
+        let read = func(&item);
+        set_inert_atom_state_with_id(item, id);
+        Some(read)
+    } else {
+        None
+    }
+   
 }
 
 pub fn return_key_for_type_and_insert_if_required<T: 'static + Clone + Eq + Hash>(value: T) -> StorageKey {

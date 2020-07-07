@@ -3,12 +3,10 @@ use crate::reactive_state_functions::*;
 use std::marker::PhantomData;
 use crate::observable::Observable;
 use crate::store::StorageKey;
+use crate::marker::*;
 // use seed::prelude::*;
 // marker types
-pub enum AllowUndo{}
-pub enum NoUndo{}
-pub  enum IsAnAtomState{}
-pub  enum IsAReactionState{}
+
 
 ///  Accessor struct that provides access to getting and setting the
 ///  state of the stored type

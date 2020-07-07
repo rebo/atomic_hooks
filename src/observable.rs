@@ -1,5 +1,7 @@
+
 use crate::reactive_state_access::{ReactiveStateAccess};
 use crate::state_access::StateAccess;
+use crate::marker::*;
 use std::cell::RefCell;
 
 use crate::store::{ReactiveContext};
@@ -84,47 +86,88 @@ impl <T>Observable<T> for  StateAccess<T> where T:'static {
 }
 
 
-pub struct FilterVec<T,U,A> where T:'static, A:'static, U:'static{
-    vec: ReactiveStateAccess::<Vec<T>,U,A>,
+pub struct AtomVec<T> where T:'static {
+    vec: ReactiveStateAccess::<Vec<T>, NoUndo,IsAnAtomState>,
     filtered_idxs: Vec<usize>,
 }
 
-impl  <T,U,A>FilterVec<T,U,A> where T:'static{
-    pub  fn iter(&self) -> FilterVecIterator<T,U,A> {
-        FilterVecIterator::new(self.clone())
+impl  <T>AtomVec<T> where T:'static {
+    pub  fn iter(&self) -> AtomVecIterator<T> {
+        AtomVecIterator::new(self.clone())
+    }
+
+    pub fn sort(&mut self) where T:PartialEq +Eq + PartialOrd{
+        self.vec.clone().get_with(|vec|            
+            self.filtered_idxs.sort_by(|&a,&b|
+                (vec[a].partial_cmp(&vec[b])).unwrap()
+            )
+        );  
+    }
+
+    
+    pub fn filter<F:FnMut(&T)-> bool>(&mut self , mut func: F ) {
+        self.vec.clone().get_with(|vec|
+            self.filtered_idxs = self.filtered_idxs
+                .iter()
+                .filter(|&&idx| 
+                    func(vec.get(idx).unwrap())
+                )
+                .cloned().collect()
+        );  
+    }
+
+    // pub fn split<F>(&self, mut pred: F) -> (AtomVec<T>,AtomVec<T>) where F: FnMut(&T) -> bool, {
+    //     self.vec.get_with(|vec|
+    //         {let split_vecs = self.filtered_idxs
+    //             .split(
+    //                 |&idx| 
+    //                     pred(vec.get(idx).unwrap())
+    //             )
+    //             .collect::<Vec<_>>();
+    //             let atom_vec_0 = AtomVec {
+    //                 vec : self.vec,
+    //                 filtered_idxs: split_vecs[0].to_vec()
+    //             };
+    //             let atom_vec_1 = AtomVec {
+    //                 vec : self.vec,
+    //                 filtered_idxs: split_vecs[1].to_vec()
+    //             };
+    //             (atom_vec_0,atom_vec_1)
+    //         }
+    //     )
+    // }
+
+}
+
+impl <T>Clone for AtomVec<T> where T:'static { 
+    fn clone(&self) -> Self {
+        AtomVec {
+            vec: self.vec,
+            filtered_idxs: self.filtered_idxs.clone()
+        }
     }
 }
 
-impl <T,U,A>Clone for FilterVec<T,U,A> where T:'static, A:'static{ 
-fn clone(&self) -> Self {
-    FilterVec {
-        vec: self.vec,
-        filtered_idxs: self.filtered_idxs.clone()
-    }
-}
-}
-
-
-pub struct FilterVecIterator<T,U,A> where T:'static, A:'static, U:'static{
-    filter_vec : FilterVec<T,U,A>,
+pub struct AtomVecIterator<T> where T:'static{
+    atom_vec : AtomVec<T>,
     current: usize 
 }
 
-impl <T,U,A>FilterVecIterator<T,U,A> {
-    pub fn new(filter_vec: FilterVec<T,U,A>) -> FilterVecIterator::<T,U,A>{
-    FilterVecIterator{
-filter_vec,
-current: 0
+impl <T>AtomVecIterator<T> {
+    pub fn new(atom_vec: AtomVec<T>) -> AtomVecIterator::<T>{
+    AtomVecIterator{
+        atom_vec,
+        current: 0
     }
 }
 }
 
 pub trait ObservableVec<T,U,A> where T: 'static{
-    fn observe_and_filter<F:FnMut( usize,&T) -> Option<usize> >(&self, func: F) -> FilterVec<T,U,A>;
+    fn observe_and_filter<F:FnMut( usize,&T) -> Option<usize> >(&self, func: F) -> AtomVec<T>;
 }
 
 impl <T,U,A>ObservableVec<T,U,A> for ReactiveStateAccess<Vec<T>,U,A> where T:  'static {
-    fn observe_and_filter<F:FnMut( usize,&T) -> Option<usize> >(&self, func: F) -> FilterVec<T,U,A>{
+    fn observe_and_filter<F:FnMut( usize,&T) -> Option<usize> >(&self, func: F) -> AtomVec<T>{
         let mut func = func;
         self.observe_with( |v| {
             let filtered = v.iter()
@@ -132,8 +175,8 @@ impl <T,U,A>ObservableVec<T,U,A> for ReactiveStateAccess<Vec<T>,U,A> where T:  '
                 .filter_map(|(idx,v)| func(idx,v))
                 .collect::<Vec<usize>>();
                 
-                FilterVec {
-                    vec: self.clone(),
+                AtomVec {
+                    vec: ReactiveStateAccess::new(self.id),
                     filtered_idxs: filtered
                 }
         })
@@ -142,13 +185,13 @@ impl <T,U,A>ObservableVec<T,U,A> for ReactiveStateAccess<Vec<T>,U,A> where T:  '
 
 
 
-impl <T,U,A,UB,AB>ObservableVec<T,U,A> for ReactiveStateAccess<FilterVec<T,U,A>,UB,AB> where T:  'static {
-    fn observe_and_filter<F:FnMut( usize,&T) -> Option<usize> >(&self, func: F) -> FilterVec<T,U,A>{
+impl <T,U,A>ObservableVec<T,U,A> for ReactiveStateAccess<AtomVec<T>,U,A> where T:  'static {
+    fn observe_and_filter<F:FnMut( usize,&T) -> Option<usize> >(&self, func: F) -> AtomVec<T>{
         let mut func = func;
-        let filter_vec = self.observe();
+        let atom_vec = self.observe();
 
-        let orig_vec = filter_vec.vec;
-        let idxs = filter_vec.filtered_idxs;
+        let orig_vec = atom_vec.vec;
+        let idxs = atom_vec.filtered_idxs;
         
 
         // we need to collate the vec items along with their original indices
@@ -157,7 +200,7 @@ impl <T,U,A,UB,AB>ObservableVec<T,U,A> for ReactiveStateAccess<FilterVec<T,U,A>,
              idxs.iter().map(|i| (i, v.get(*i).unwrap()) ).filter_map(|(idx, value)|  func(*idx, value) ).collect()
         );
 
-        FilterVec {
+        AtomVec {
             vec: orig_vec.clone(),
             filtered_idxs: new_idxes
         }
@@ -166,7 +209,7 @@ impl <T,U,A,UB,AB>ObservableVec<T,U,A> for ReactiveStateAccess<FilterVec<T,U,A>,
 }
 
 
-impl <T,U,A> Iterator for FilterVecIterator<T,U,A> where T:Clone {
+impl <T> Iterator for AtomVecIterator<T> where T:Clone {
     // we will be counting with usize
     type Item = T;
 
@@ -174,8 +217,8 @@ impl <T,U,A> Iterator for FilterVecIterator<T,U,A> where T:Clone {
     fn next(&mut self) -> Option<Self::Item> {
         
 
-       let val =  if let Some(idx) = self.filter_vec.filtered_idxs.get(self.current) {
-            self.filter_vec.vec.get_with(|v| v.get(*idx).cloned())
+       let val =  if let Some(idx) = self.atom_vec.filtered_idxs.get(self.current) {
+            self.atom_vec.vec.get_with(|v| v.get(*idx).cloned())
         } else {
             None
         };

@@ -21,7 +21,7 @@ struct MacroArgs {
 #[derive(Debug, FromMeta)]
 struct ReactionMacroArgs {
     #[darling(default)]
-    always_run : bool,
+    split : Option<String>,
 }
 
 #[proc_macro_attribute]
@@ -109,6 +109,8 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
     quote!(
 
         pub fn #atom_ident(#arg_quote) -> ReactiveStateAccess<#the_type,#marker,IsAnAtomState>{
+
+    
                 let __id  = return_key_for_type_and_insert_if_required(#hash_quote);
                 let func = move || {
                     topo::call(||{
@@ -184,7 +186,7 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let atom_ident = format_ident!("{}", atom_ident_string);
 
-    let the_type = match input_fn.sig.output {
+    let the_type = match input_fn.sig.output.clone() {
         syn::ReturnType::Default => panic!("Your atom MUST return a non-Unit value"),
         syn::ReturnType::Type(_, the_type) => the_type.clone(),
     };
@@ -218,50 +220,52 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
     }
     let hash_quote = quote!( (CallSite::here(), #template_quote) );
 
-    let always_run_quote =  if args.always_run { quote!(_context.always_run = true;) } else {quote!()};
+    // let always_run_quote =  if args.always_run { quote!(_context.always_run = true;) } else {quote!()};
+    
+    let quote = 
+        quote!(
 
-    let quote = quote!(
+            pub fn #atom_ident<'_a>(#arg_quote) -> ReactiveStateAccess<#the_type,NoUndo,IsAReactionState>{
 
-        pub fn #atom_ident<'_a>(#arg_quote) -> ReactiveStateAccess<#the_type,NoUndo,IsAReactionState>{
-          
-                let __id = return_key_for_type_and_insert_if_required(#hash_quote);
             
-                if !reactive_state_exists_for_id::<#the_type>(&__id ){
-                                    
-                    let func = move || {
-                        topo::call(||{
-                        illicit::Env::hide::<topo::Point>();
-                        topo::call(||{
+            
+                    let __id = return_key_for_type_and_insert_if_required(#hash_quote);
+                
+                    if !reactive_state_exists_for_id::<#the_type>(&__id ){
+                                        
+                        let func = move || {
+                            topo::call(||{
+                            illicit::Env::hide::<topo::Point>();
+                            topo::call(||{
 
 
-                        let mut _context = ReactiveContext::new(__id );
-                        
-                        #always_run_quote
+                            let mut _context = ReactiveContext::new(__id );
+                            
+                            
 
-                        illicit::child_env!( std::cell::RefCell<ReactiveContext> => std::cell::RefCell::new(_context) ).enter(|| {
-                            // let mut existing_state = remove_reactive_state_with_id::<#the_type>(&atom_ident2.clone());
-                            let value = {#body};
-                            set_inert_atom_state_with_id::<#the_type>(value,&__id );
-                            // we need to remove dependencies that do nto exist anymore
-                            unlink_dead_links(&__id );
+                            illicit::child_env!( std::cell::RefCell<ReactiveContext> => std::cell::RefCell::new(_context) ).enter(|| {
+                                // let mut existing_state = remove_reactive_state_with_id::<#the_type>(&atom_ident2.clone());
+                                let value = {#body};
+                                set_inert_atom_state_with_id::<#the_type>(value,&__id );
+                                // we need to remove dependencies that do nto exist anymore
+                                unlink_dead_links(&__id );
+                            })
                         })
                     })
-                })
 
 
-                    };
+                        };
 
-                    reaction::<#the_type,NoUndo,IsAReactionState,_>(__id ,func)
-                } else {
-                    ReactiveStateAccess::<#the_type,NoUndo,IsAReactionState>::new(__id )                 
-                }
+                        reaction::<#the_type,NoUndo,IsAReactionState,_>(__id ,func)
+                    } else {
+                        ReactiveStateAccess::<#the_type,NoUndo,IsAReactionState>::new(__id )                 
+                    }
+                
+            }
             
-        }
-        
-    );
+        );
+    
 
     quote.into()
 }
-
-
 

@@ -25,9 +25,10 @@
 ///     this function was run
 ///
 ///  StateAccess - the access struct that enables a state to be udated or retrieved
+pub use crate::marker::*;
 pub use atomic_hooks_macros::{atom, reaction};
 pub use crate::store::{ReactiveContext, Reaction, TopoKey };
-pub use crate::reactive_state_access::{ChangedAtomState, CloneReactiveState, IsAnAtomState,IsAReactionState, AllowUndo, NoUndo, OverloadedUpdateStateAccess,ReactiveStateAccess};
+pub use crate::reactive_state_access::{ChangedAtomState, CloneReactiveState, OverloadedUpdateStateAccess,ReactiveStateAccess};
 pub use crate::reactive_state_functions::{atom,UndoVec,reaction,try_read_reactive_state_with_id,
     clone_reactive_state_with_id, 
     set_inert_atom_state_with_id,
@@ -48,5 +49,5 @@ pub use crate::hooks_state_functions::{
 };
 pub use crate::unmount::{StateAccessUnmount, Unmount};
 
-pub use crate::observable::{Observable,FilterVec, ObservableVec};
+pub use crate::observable::{Observable,AtomVec, ObservableVec};
 

@@ -54,4 +54,11 @@ impl CallSite {
             location: std::panic::Location::caller() as *const _ as usize,
         }
     }
+
+    #[track_caller]
+    pub fn loc() ->String {
+       
+            std::panic::Location::caller().to_string()
+       
+    }
 }
