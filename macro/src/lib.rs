@@ -21,6 +21,8 @@ struct MacroArgs {
 #[derive(Debug, FromMeta)]
 struct ReactionMacroArgs {
     #[darling(default)]
+    existing_state: bool,
+    #[darling(default)]
     split : Option<String>,
 }
 
@@ -32,6 +34,14 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
         Ok(v) => v,
         Err(e) => panic!("{}",e),
     };
+
+
+    let (atom_fn_ident,marker) = if args.undo {
+        (format_ident!("atom_with_undo"), format_ident!("AllowUndo"))
+    } else {
+        (format_ident!("atom"), format_ident!("NoUndo"))
+    };
+
 
     let input_fn: ItemFn = syn::parse_macro_input!(input);
 
@@ -73,23 +83,17 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
         
         
         if first {
-        template_quote = quote!(#arg_name_ident,);
-        use_args_quote = quote!(#arg_name_ident,);
+        template_quote = quote!(#arg_name_ident.clone(),);
+        use_args_quote = quote!(let #arg_name_ident = #arg_name_ident.clone(););
         } else {
             first = false;
-            template_quote = quote!(#template_quote,#arg_name_ident,);
-            use_args_quote = quote!(#use_args_quote, #arg_name_ident);
+            template_quote = quote!(#template_quote #arg_name_ident.clone(),);
+            use_args_quote = quote!(#use_args_quote let #arg_name_ident = #arg_name_ident.clone(););
         }
     }
 
     let hash_quote = quote!( (CallSite::here(), #template_quote) );
     
-
-    let (atom_fn_ident,marker) = if args.undo {
-        (format_ident!("atom_with_undo"), format_ident!("AllowUndo"))
-    } else {
-        (format_ident!("atom"), format_ident!("NoUndo"))
-    };
 
 
     let update_with_undo= if args.undo {
@@ -112,14 +116,20 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
 
     
                 let __id  = return_key_for_type_and_insert_if_required(#hash_quote);
+
                 let func = move || {
+                    #use_args_quote
+
+
+
                     topo::call(||{
+                        
                         illicit::Env::hide::<topo::Point>();
                         topo::call(||{
-
+                            
                             let context = ReactiveContext::new(__id );
                             illicit::child_env!( std::cell::RefCell<ReactiveContext> => std::cell::RefCell::new(context) ).enter(|| {
-
+                                
                                 let value = {#body};
                                 #set_inert_with_undo
                                 #update_with_undo
@@ -178,7 +188,7 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
         Err(e) => panic!("{}",e),
     };
 
-
+    
     let input_fn: ItemFn = syn::parse_macro_input!(input);
     
     let input_fn_string = input_fn.sig.ident.to_string();
@@ -207,54 +217,76 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
     }   
     
     let mut template_quote = quote!();
+    let mut use_args_quote = quote!();
 
     let mut first = true;
     for input in inputs_iter_2 {
         let arg_name_ident = format_ident!("{}",get_arg_name(input));
+        
+        
         if first {
-        template_quote = quote!(#arg_name_ident,);
+        template_quote = quote!(#arg_name_ident.clone(),);
+        use_args_quote = quote!(let #arg_name_ident = #arg_name_ident.clone(););
         } else {
             first = false;
-            template_quote = quote!(#template_quote,#arg_name_ident,);
+            template_quote = quote!(#template_quote #arg_name_ident.clone(),);
+            use_args_quote = quote!(#use_args_quote let #arg_name_ident = #arg_name_ident.clone(););
         }
     }
+
     let hash_quote = quote!( (CallSite::here(), #template_quote) );
 
-    // let always_run_quote =  if args.always_run { quote!(_context.always_run = true;) } else {quote!()};
+    let use_existing_state = if args.existing_state {
+        quote!(
+            let mut existing_state = clone_reactive_state_with_id::<#the_type>(&__id);
+        )
+    } else {
+        quote!()
+    };
+
     
     let quote = 
         quote!(
 
             pub fn #atom_ident<'_a>(#arg_quote) -> ReactiveStateAccess<#the_type,NoUndo,IsAReactionState>{
 
-            
-            
+
                     let __id = return_key_for_type_and_insert_if_required(#hash_quote);
-                
+
+               
                     if !reactive_state_exists_for_id::<#the_type>(&__id ){
-                                        
+               
                         let func = move || {
+                            #use_args_quote
+                            
                             topo::call(||{
+                                
                             illicit::Env::hide::<topo::Point>();
+                            
                             topo::call(||{
-
-
+                                
                             let mut _context = ReactiveContext::new(__id );
+                            {
                             
-                            
-
                             illicit::child_env!( std::cell::RefCell<ReactiveContext> => std::cell::RefCell::new(_context) ).enter(|| {
-                                // let mut existing_state = remove_reactive_state_with_id::<#the_type>(&atom_ident2.clone());
+                                
+                                
+                                #use_existing_state
                                 let value = {#body};
                                 set_inert_atom_state_with_id::<#the_type>(value,&__id );
                                 // we need to remove dependencies that do nto exist anymore
                                 unlink_dead_links(&__id );
                             })
+                            
+                        }
                         })
+                        
                     })
+                    
 
 
                         };
+                        
 
                         reaction::<#the_type,NoUndo,IsAReactionState,_>(__id ,func)
                     } else {

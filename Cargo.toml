@@ -19,3 +19,4 @@ atomic_hooks_macros = {path = "./macro"}
 # seed = "0.7.0"
 topo = "=0.9.4"
 
+# seed = { git = "https://github.com/seed-rs/seed", rev = "0a538f0" }

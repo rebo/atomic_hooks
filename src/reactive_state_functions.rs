@@ -356,7 +356,7 @@ pub fn return_key_for_type_and_insert_if_required<T: 'static + Clone + Eq + Hash
 
     STORE.with(|refcell_store|
     {
-        refcell_store.borrow_mut().return_key_for_type_and_insert_if_required(key,value)
+        refcell_store.borrow_mut().return_key_for_type_and_insert_if_required(key,value.clone())
     })
 }
 

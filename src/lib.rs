@@ -1,7 +1,7 @@
 #![feature(track_caller)]
 pub use atomic_hooks_macros::{atom, reaction};
 // storage
-mod store;
+pub mod store;
 
 // hooks
 mod state_access;
@@ -10,7 +10,7 @@ mod hooks_state_functions;
 // reactive state
 
 mod reactive_state_access;
-mod reactive_state_functions;
+pub mod reactive_state_functions;
 mod marker;
 
 // helpers

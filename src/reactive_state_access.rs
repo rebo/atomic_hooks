@@ -56,7 +56,7 @@ where
     }
 
     // stores a value of type T in a backing Store
-    pub fn insert_set(self, value: T) where Self :OverloadedUpdateStateAccess<T>{
+    pub fn inert_set(self, value: T) where Self :OverloadedUpdateStateAccess<T>{
         self.overloaded_inert_set(value);
     }
 

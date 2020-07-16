@@ -82,14 +82,18 @@ impl Store {
         }
     }
 
-    pub fn add_atom(&mut self, id: &StorageKey) {
-        let dep_sm_key = self.id_to_key_map.get(id).unwrap().clone();
+    fn responsive_map(&mut self) -> &mut SecondaryMap<DefaultKey, Vec<DefaultKey>>{
 
         if self.get_secondarymap::<Vec<DefaultKey>>().is_none(){
             self.register_secondarymap::<Vec<DefaultKey>>();
         }
 
-        let map = &mut self.get_mut_secondarymap::<Vec<DefaultKey>>().unwrap();
+        self.get_mut_secondarymap::<Vec<DefaultKey>>().unwrap()
+    }
+
+    pub fn add_atom(&mut self, id: &StorageKey) {
+        let dep_sm_key = self.id_to_key_map.get(id).unwrap().clone();
+        let map = self.responsive_map();
         map.insert(dep_sm_key, vec![]);
     }
 
@@ -99,7 +103,7 @@ impl Store {
         let reaction_sm_key = self.id_to_key_map.get(reaction_id).unwrap().clone();
         
         
-        let map = &mut self.get_mut_secondarymap::<Vec<DefaultKey>>().unwrap();
+        let map = &mut self.responsive_map();
         
             if let Some(nodes) = map.get_mut(source_sm_key) {
                 nodes.retain(|n| *n != reaction_sm_key);
@@ -113,8 +117,7 @@ impl Store {
         let source_sm_key = self.id_to_key_map.get(source_id).unwrap().clone();
         let reaction_sm_key = self.id_to_key_map.get(reaction_id).unwrap().clone();
         
-        let map = &mut self.get_mut_secondarymap::<Vec<DefaultKey>>().unwrap();
-    
+        let map = &mut self.responsive_map();
         if let Some(nodes) = map.get_mut(source_sm_key) {
             if !nodes.contains(&reaction_sm_key) {
                 nodes.push(reaction_sm_key)
