@@ -43,7 +43,7 @@ pub struct SlottedKey
 pub struct TopoKey
 {
     pub ctx: Option<SlottedKey>,
-    pub id: topo::Id,
+    pub id: topo::CallId,
 }
 
 #[derive(Clone)]

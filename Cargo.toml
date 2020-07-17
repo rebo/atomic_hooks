@@ -17,5 +17,5 @@ typemap = "0.3.3"
 # atomic_hooks_macros = "0.1.3"
 atomic_hooks_macros = {path = "./macro"}
 # seed = "0.7.0"
-topo = "=0.9.4"
+topo = "0.12.0"
 

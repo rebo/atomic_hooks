@@ -22,7 +22,7 @@ pub fn do_once<F: FnMut() -> ()>(mut func: F) -> StateAccess<bool> {
 
 
 #[derive(Clone,Copy,Debug,PartialEq,Hash,Eq)]
-pub struct Local( topo::Id );
+pub struct Local( topo::CallId );
 
 impl std::fmt::Display for Local {
 
@@ -34,7 +34,7 @@ impl std::fmt::Display for Local {
 impl Local{
     #[topo::nested]
     pub fn new() -> Local{
-        Local( topo::Id::current())
+        Local( topo::CallId::current())
     }
 }
 
