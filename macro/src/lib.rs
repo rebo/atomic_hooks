@@ -23,41 +23,97 @@ struct ReactionMacroArgs {
     #[darling(default)]
     existing_state: bool,
     #[darling(default)]
-    split : Option<String>,
+    suspended:bool,
 }
+
 
 #[proc_macro_attribute]
 pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
-    let attr_args = syn::parse_macro_input!(args as AttributeArgs);
+    let attr_args = syn::parse_macro_input!(args as AttributeArgs);   
+
+    let input_fn: ItemFn = syn::parse_macro_input!(input);
+    let vis = input_fn.vis.clone();
+
+    
+
 
     let args = match MacroArgs::from_list(&attr_args){
         Ok(v) => v,
         Err(e) => panic!("{}",e),
     };
 
+    
 
-    let (atom_fn_ident,marker) = if args.undo {
-        (format_ident!("atom_with_undo"), format_ident!("AllowUndo"))
-    } else {
-        (format_ident!("atom"), format_ident!("NoUndo"))
+    let atom_fn_ident = if args.undo {
+        format_ident!("atom_undo")
+    }  else {
+        format_ident!("atom")
     };
+    
+    let sig = input_fn.sig.clone();
+    
 
-
-    let input_fn: ItemFn = syn::parse_macro_input!(input);
-
-    let input_fn_string = input_fn.sig.ident.to_string();
-    let atom_ident_string = input_fn_string.as_str();
-
-    let atom_ident = format_ident!("{}", atom_ident_string);
-
-    let the_type = match input_fn.sig.output {
+    let the_outer_type = match input_fn.sig.output {
         syn::ReturnType::Default => panic!("Your atom MUST return a non-Unit value"),
         syn::ReturnType::Type(_, the_type) => the_type.clone(),
     };
+
+
+    let the_type = 
+    if args.undo {
+        match *the_outer_type {
+            syn::Type::Path(p) => {
+                
+                if let Some(atom_segment) = p.path.segments.first() {
+                    if atom_segment.ident.to_string() != "AtomUndo" {
+                        panic!("You really need to return an AtomUndo wrapped type");
+                    }
+                    match &atom_segment.arguments {
+                            syn::PathArguments::AngleBracketed(angle_brack_args) => {
+                                let first_arg = angle_brack_args.args.first().expect("AtomUndo should have a first type");
+                                if let syn::GenericArgument::Type(a_type) = first_arg {
+                                    a_type.clone()
+                                } else {
+                                    panic!("AtomUndo doest hold a type")
+                                }
+                            },
+                            _ => panic!("AtomUndo has no type???")
+                    }
+                } else { 
+                    panic!("You do need to return an AtomUndo wrapped type");
+                }
+            },
+            _ => panic!("You need to return an AtomUndo wrapped type"),
+        }
+
+    } else {
+    match *the_outer_type {
+        syn::Type::Path(p) => {
+            
+            if let Some(atom_segment) = p.path.segments.first() {
+                if atom_segment.ident.to_string() != "Atom" {
+                    panic!("You really need to return an atom wrapped type");
+                }
+                match &atom_segment.arguments {
+                        syn::PathArguments::AngleBracketed(angle_brack_args) => {
+                            let first_arg = angle_brack_args.args.first().expect("atom should have a first type");
+                            if let syn::GenericArgument::Type(a_type) = first_arg {
+                                a_type.clone()
+                            } else {
+                                panic!("atom doest hold a type")
+                            }
+                        },
+                        _ => panic!("Atom has no type???")
+                }
+            } else { 
+                panic!("You do need to return an atom wrapped type");
+            }
+        },
+        _ => panic!("You need to return an atom wrapped type"),
+    }
+};
+
     let body = input_fn.block.clone();
-
-
-    
 
 
     let inputs_iter = &mut input_fn.sig.inputs.iter();
@@ -66,7 +122,7 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
     let  inputs_iter_2 = inputs_iter.clone();
     
     
-    let mut arg_quote = quote!();
+    let mut arg_quote;
     if let Some(first_arg) = inputs_iter_3.next(){
         arg_quote  = quote!(#first_arg,);
         for input in inputs_iter_3 {
@@ -96,31 +152,22 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
     
 
 
-    let update_with_undo= if args.undo {
-       quote!( set_inert_atom_state_with_id(UndoVec::<#the_type>(vec![value]), &__id); )
-    } else {
-       quote!()
-    };
-
     let set_inert_with_undo= if args.undo {
-        quote!( set_inert_atom_state_with_id::<#the_type>(value.clone(),&__id ); )
+        quote!( set_inert_atom_state_with_id_with_undo::<#the_type>(value,__id ); )
      } else {
-        quote!(set_inert_atom_state_with_id::<#the_type>(value,&__id );)
+        quote!( set_inert_atom_state_with_id::<#the_type>(value,__id );)
      };
 
 
     
     quote!(
 
-        pub fn #atom_ident(#arg_quote) -> ReactiveStateAccess<#the_type,#marker,IsAnAtomState>{
+       #vis #sig{
 
-    
                 let __id  = return_key_for_type_and_insert_if_required(#hash_quote);
 
                 let func = move || {
                     #use_args_quote
-
-
 
                     topo::call(||{
                         
@@ -132,7 +179,6 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
                                 
                                 let value = {#body};
                                 #set_inert_with_undo
-                                #update_with_undo
                             })
 
 
@@ -140,7 +186,7 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
                     })
                 };
 
-                #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(__id ,func)
+                #atom_fn_ident::<#the_type,_>(__id ,func)
             
         } 
 
@@ -188,18 +234,55 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
         Err(e) => panic!("{}",e),
     };
 
+    let reaction_suspended_ident = if args.suspended {
+        format_ident!("reaction_start_suspended")
+    } else {
+        format_ident!("reaction")
+    };
     
     let input_fn: ItemFn = syn::parse_macro_input!(input);
     
-    let input_fn_string = input_fn.sig.ident.to_string();
-    let atom_ident_string = input_fn_string.as_str();
+    
 
-    let atom_ident = format_ident!("{}", atom_ident_string);
+    
+    let sig = input_fn.sig.clone();
+    let vis = input_fn.vis.clone();
 
-    let the_type = match input_fn.sig.output.clone() {
+    let the_outer_type = match input_fn.sig.output.clone() {
         syn::ReturnType::Default => panic!("Your atom MUST return a non-Unit value"),
         syn::ReturnType::Type(_, the_type) => the_type.clone(),
     };
+
+
+
+    let the_type = match *the_outer_type {
+        syn::Type::Path(p) => {
+            
+            if let Some(atom_segment) = p.path.segments.first() {
+                if atom_segment.ident.to_string() != "Reaction" {
+                    panic!("You really need to return an Reaction wrapped type");
+                }
+                match &atom_segment.arguments {
+                        syn::PathArguments::AngleBracketed(angle_brack_args) => {
+                            let first_arg = angle_brack_args.args.first().expect("Reaction should have a first type");
+                            if let syn::GenericArgument::Type(a_type) = first_arg {
+                                a_type.clone()
+                            } else {
+                                panic!("Reaction doest hold a type")
+                            }
+                        },
+                        _ => panic!("Reaction has no type???")
+                }
+            } else { 
+                panic!("You do need to return an Reaction wrapped type");
+            }
+        },
+        _ => panic!("You need to return an Reaction wrapped type"),
+
+    };
+
+
+
     let body = input_fn.block.clone();
 
     let inputs_iter = &mut input_fn.sig.inputs.iter();
@@ -208,7 +291,7 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
     let  inputs_iter_2 = inputs_iter.clone();
     
     
-    let mut arg_quote = quote!();
+    let mut arg_quote;
     if let Some(first_arg) = inputs_iter_3.next(){
         arg_quote  = quote!(#first_arg);
         for input in inputs_iter_3 {
@@ -238,7 +321,7 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let use_existing_state = if args.existing_state {
         quote!(
-            let mut existing_state = clone_reactive_state_with_id::<#the_type>(&__id);
+            let mut existing_state = clone_reactive_state_with_id::<#the_type>(__id);
         )
     } else {
         quote!()
@@ -248,13 +331,13 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
     let quote = 
         quote!(
 
-            pub fn #atom_ident<'_a>(#arg_quote) -> ReactiveStateAccess<#the_type,NoUndo,IsAReactionState>{
+            #vis #sig{
 
 
                     let __id = return_key_for_type_and_insert_if_required(#hash_quote);
 
                
-                    if !reactive_state_exists_for_id::<#the_type>(&__id ){
+                    if !reactive_state_exists_for_id::<#the_type>(__id ){
                
                         let func = move || {
                             #use_args_quote
@@ -273,9 +356,9 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
                                 
                                 #use_existing_state
                                 let value = {#body};
-                                set_inert_atom_state_with_id::<#the_type>(value,&__id );
+                                set_inert_atom_state_with_id::<#the_type>(value,__id );
                                 // we need to remove dependencies that do nto exist anymore
-                                unlink_dead_links(&__id );
+                                unlink_dead_links(__id );
                             })
                             
                         }
@@ -288,9 +371,9 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
                         };
                         
 
-                        reaction::<#the_type,NoUndo,IsAReactionState,_>(__id ,func)
+                        #reaction_suspended_ident::<#the_type,_>(__id ,func)
                     } else {
-                        ReactiveStateAccess::<#the_type,NoUndo,IsAReactionState>::new(__id )                 
+                        Reaction::<#the_type>::new(__id )                 
                     }
                 
             }

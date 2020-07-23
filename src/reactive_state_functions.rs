@@ -1,10 +1,10 @@
-use crate::reactive_state_access:: ReactiveStateAccess;
-
-use crate::store::{ Reaction, ReactiveContext,Store, StorageKey, SlottedKey};
+use crate::reactive_state_access:: {Reaction, Atom, AtomUndo};
+use crate::undo::global_undo_queue;
+use crate::store::{ RxFunc, ReactiveContext,Store, StorageKey, SlottedKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::hash::Hash;
-use crate::marker::*;
+
 // use seed::{*,prelude};
 
 
@@ -24,32 +24,71 @@ thread_local! {
 //
 // Typically this is created via the #[atom] attribute macro
 //
-pub fn atom<T: 'static , F: Fn() -> () + 'static, U,A>(current_id: StorageKey, data_fn: F)  -> ReactiveStateAccess<T,U,IsAnAtomState> {
+pub fn atom<T: 'static , F: Fn() -> () + 'static>(id: StorageKey, data_fn: F)  -> Atom<T> {
     
     // we do not need to re-initalize the atom if it already has been stored.
-    if !reactive_state_exists_for_id::<T>(&current_id) {
+    if !reactive_state_exists_for_id::<T>(id) {
 
        
-        let reaction = Reaction{
+        let reaction = RxFunc {
             func: Rc::new(data_fn),
         };
  
         STORE.with(|store_refcell| {   
             store_refcell
                 .borrow_mut()
-                .new_reaction( &current_id, reaction.clone());
+                .new_reaction( &id, reaction.clone());
         });
 
         (reaction.func.clone())();
 
         STORE.with(|store_refcell| {
             store_refcell
-                .borrow_mut().add_atom(&current_id);
+                .borrow_mut().add_atom(&id);
         })
 
     }
-    ReactiveStateAccess::new(current_id)
+    Atom::new(id)
 }
+
+pub fn atom_undo<T: 'static + Clone , F: Fn() -> () + 'static>(id: StorageKey, data_fn: F)  -> AtomUndo<T> {
+    
+    // we do not need to re-initalize the atom if it already has been stored.
+    if !reactive_state_exists_for_id::<T>(id) {
+
+        let reaction = RxFunc {
+            func: Rc::new(data_fn),
+        };
+ 
+        STORE.with(|store_refcell| {   
+            store_refcell
+                .borrow_mut()
+                .new_reaction( &id, reaction.clone());
+        });
+
+        (reaction.func.clone())();
+
+        crate::undo::global_undo_queue().update(|u|
+            u.commands.push(
+                crate::undo::Command::new(reaction
+                    ,
+                    RxFunc{
+                        func: Rc::new(move||{remove_reactive_state_with_id::<T>(id);})
+                    }
+                )
+            )
+        );
+
+
+        STORE.with(|store_refcell| {
+            store_refcell
+                .borrow_mut().add_atom(&id);
+        })
+
+    }
+    AtomUndo::new(id)
+}
+
 
 // 
 //  Constructs a T reaction state accessor. T is stored keyed to the provided String id.
@@ -62,30 +101,30 @@ pub fn atom<T: 'static , F: Fn() -> () + 'static, U,A>(current_id: StorageKey, d
 //
 // Typically this is created via the #[reaction] attribute macro
 //
-pub fn reaction<T:'static,U,A,F: Fn()->() + 'static>(
-    current_id: StorageKey, 
+pub fn reaction<T:'static,F: Fn()->() + 'static>(
+    id: StorageKey, 
     data_fn: F,
-    ) -> ReactiveStateAccess<T,NoUndo,IsAReactionState> {
+    ) -> Reaction<T> {
 
-    if !reactive_state_exists_for_id::<T>(&current_id) {
+    if !reactive_state_exists_for_id::<T>(id) {
         STORE.with(|store_refcell| {
 
             let key = store_refcell
                 .borrow_mut()
-                .primary_slotmap.insert(current_id);
+                .primary_slotmap.insert(id);
 
-            store_refcell.borrow_mut().id_to_key_map.insert(current_id, key);
+            store_refcell.borrow_mut().id_to_key_map.insert(id, key);
         });
         
     
-        let reaction = Reaction{
+        let reaction = RxFunc{
             func: Rc::new(data_fn),
         };
  
         STORE.with(|store_refcell| {   
             store_refcell
                 .borrow_mut()
-                .new_reaction( &current_id, reaction.clone());
+                .new_reaction( &id, reaction.clone());
         });
 
         (reaction.func.clone())();
@@ -93,87 +132,44 @@ pub fn reaction<T:'static,U,A,F: Fn()->() + 'static>(
     }
 
 
-    ReactiveStateAccess::<T,NoUndo,IsAReactionState>::new(current_id)
+    Reaction::<T>::new(id)
 }
 
-pub fn computed<T:'static,U,A,F: Fn()->() + 'static>(
-    current_id: StorageKey, 
+pub fn reaction_start_suspended<T:'static,F: Fn()->() + 'static>(
+    id: StorageKey, 
     data_fn: F,
-    ) -> ReactiveStateAccess<T,NoUndo,IsAReactionState> {
+    ) -> Reaction<T> {
 
-    if !reactive_state_exists_for_id::<T>(&current_id) {
+    if !reactive_state_exists_for_id::<T>(id) {
         STORE.with(|store_refcell| {
 
             let key = store_refcell
                 .borrow_mut()
-                .primary_slotmap.insert(current_id);
+                .primary_slotmap.insert(id);
 
-            store_refcell.borrow_mut().id_to_key_map.insert(current_id, key);
+            store_refcell.borrow_mut().id_to_key_map.insert(id, key);
         });
         
     
-        let reaction = Reaction{
+        let reaction = RxFunc{
             func: Rc::new(data_fn),
         };
  
         STORE.with(|store_refcell| {   
             store_refcell
                 .borrow_mut()
-                .new_reaction( &current_id, reaction.clone());
+                .new_reaction( &id, reaction.clone());
         });
 
-        (reaction.func.clone())();
-
     }
 
 
-    ReactiveStateAccess::<T,NoUndo,IsAReactionState>::new(current_id)
+    Reaction::<T>::new(id)
 }
 
 
 
-
-pub fn undo_atom_state<T: 'static + Clone, AllowUndo,IsAnAtomState>(current_id: &StorageKey){
-    
-    let mut undo_vec = remove_reactive_state_with_id::<UndoVec<T>>(current_id).expect("initial undo vec should be present but its not");
-    
-    if undo_vec.0.len() > 1 {
-        let item =  undo_vec.0.pop().expect("type to exist");    
-        update_atom_state_with_id(current_id,|t| *t = item);
-        
-    }
-    set_inert_atom_state_with_id(undo_vec, current_id) ;
-
-}
-
-pub fn atom_with_undo<T: 'static , F: Fn() -> () + 'static, U,A>(current_id: StorageKey, data_fn: F)  -> ReactiveStateAccess<T,AllowUndo,IsAnAtomState> where T:Clone + 'static{
-    
-    if !reactive_state_exists_for_id::<T>(&current_id) {
-
-        let reaction = Reaction{
-            func: Rc::new(data_fn),
-        };
- 
-        STORE.with(|store_refcell| {   
-            store_refcell
-                .borrow_mut()
-                .new_reaction( &current_id, reaction.clone());
-        });
-
-        (reaction.func.clone())();
-        
-        STORE.with(|store_refcell| {
-            store_refcell
-                .borrow_mut().add_atom(&current_id);
-        })
-    }
-    ReactiveStateAccess::new(current_id)
-}
-
-
-
-
-pub fn unlink_dead_links(id: &StorageKey){
+pub fn unlink_dead_links(id: StorageKey){
     let context = illicit::Env::get::<RefCell<ReactiveContext>>().expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
     if reactive_state_exists_for_id::<ReactiveContext>(id) {
     read_reactive_state_with_id::<ReactiveContext,_,()>(id, |old_context| {
@@ -183,7 +179,7 @@ pub fn unlink_dead_links(id: &StorageKey){
             STORE.with(|store_refcell| {
                 store_refcell
                     .borrow_mut()
-                    .remove_dependency(id_to_remove,id);
+                    .remove_dependency(id_to_remove,&id);
             })
         }
     }
@@ -193,104 +189,179 @@ pub fn unlink_dead_links(id: &StorageKey){
 
 }
 
+/// Sets the state of type T keyed to the given TopoId
+pub fn set_inert_atom_state_with_id<T: 'static >(data: T, id: StorageKey) {
 
 
-
-
-
-pub fn set_inert_atom_state_with_id_with_undo<T: 'static>(data: T, current_id: &StorageKey) where T:Clone {
-    let item = clone_reactive_state_with_id::<T>(current_id).expect("inital state needs to be present");
-    let mut  undo_vec = remove_reactive_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
-    undo_vec.0.push(item);
-    set_inert_atom_state_with_id(undo_vec, current_id) ;
-    set_inert_atom_state_with_id(data, current_id);
-    
+STORE.with(|store_refcell| {
+    store_refcell
+        .borrow_mut()
+        .set_state_with_id::<T>(data, &id)
+})
 }
-
-
-
-
-
-pub fn set_atom_state_with_id_with_undo<T: 'static>(data: T, current_id: &StorageKey) where T:Clone {
-    let item = clone_reactive_state_with_id::<T>(current_id).expect("inital state needs to be present");
-    let mut  undo_vec = remove_reactive_state_with_id::<UndoVec<T>>(current_id).expect("untitlal undo vec to be present");
-    undo_vec.0.push(item);
-    set_inert_atom_state_with_id(undo_vec, current_id) ;
-    set_inert_atom_state_with_id(data, current_id);
-    execute_reaction_nodes(current_id);
-    
-}
-
 
 
 /// Sets the state of type T keyed to the given TopoId
-pub fn set_inert_atom_state_with_id<T: 'static>(data: T, current_id: &StorageKey) {
+pub fn set_inert_atom_state_with_id_with_undo<T: 'static + Clone>(data: T, id: StorageKey) {
+
+    
+    let new_data = data.clone();
+        if let Some(previous_state) = clone_reactive_state_with_id::<T>(id){
+            global_undo_queue().update(|u| {
+                u.commands.truncate(u.cursor);
+
+                u.commands.push(
+                    crate::undo::Command::new(
+                        RxFunc::new(move||{set_inert_atom_state_with_id::<T>(new_data.clone(),id);}),
+                        RxFunc::new(move||{set_inert_atom_state_with_id::<T>(previous_state.clone(), id);})
+                    )
+                );
+                u.cursor +=1 ;
+
+            })
+        } else {
+            global_undo_queue().update(|u| {
+                u.commands.truncate(u.cursor);
+
+                u.commands.push(
+                    crate::undo::Command::new(
+                        RxFunc::new(move||{set_inert_atom_state_with_id::<T>(new_data.clone(),id);}),
+                        RxFunc::new(move||{remove_reactive_state_with_id::<T>(id);})
+                    )
+                );
+                u.cursor +=1 ;
+
+            })
+        
+        }       
+
+
+
+
     STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
-            .set_state_with_id::<T>(data, current_id)
+            .set_state_with_id::<T>(data, &id)
     })
 }
 
 
 /// Sets the state of type T keyed to the given TopoId
-pub fn set_atom_state_with_id<T: 'static>(data: T, current_id: &StorageKey) {
+pub fn set_atom_state_with_id<T: 'static>(data: T, id: StorageKey) {
+
+
+STORE.with(|store_refcell| {
+    store_refcell
+        .borrow_mut()
+        .set_state_with_id::<T>(data, &id)
+});
+
+execute_reaction_nodes(&id);
+}
+
+/// Sets the state of type T keyed to the given TopoId
+pub fn set_atom_state_with_id_with_undo<T: 'static + Clone>(data: T, id: StorageKey) {
+
+    let new_data = data.clone();
+    if let Some(previous_state) = clone_reactive_state_with_id::<T>(id){
+        global_undo_queue().update(|u| {
+            u.commands.truncate(u.cursor);
+
+            u.commands.push(
+                crate::undo::Command::new(
+                    RxFunc::new(move||{set_atom_state_with_id::<T>(new_data.clone(),id);}),
+                    RxFunc::new(move||{set_inert_atom_state_with_id::<T>(previous_state.clone(), id);})
+                )
+            );
+            u.cursor +=1 ;
+
+        })
+    } else {
+        global_undo_queue().update(|u| {
+            u.commands.truncate(u.cursor);
+
+            u.commands.push(
+                crate::undo::Command::new(
+                    RxFunc::new(move||{set_atom_state_with_id::<T>(new_data.clone(),id);}),
+                    RxFunc::new(move||{remove_reactive_state_with_id::<T>(id);})
+                )
+            );
+            u.cursor +=1 ;
+
+        })
+    
+    }       
+    
+
     STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
-            .set_state_with_id::<T>(data, current_id)
+            .set_state_with_id::<T>(data, &id)
     });
 
-    execute_reaction_nodes(current_id);
+    execute_reaction_nodes(&id);
 }
 
 
 
-pub fn reactive_state_exists_for_id<T: 'static>(id: &StorageKey) -> bool {
+pub fn reactive_state_exists_for_id<T: 'static>(id: StorageKey) -> bool {
     STORE.with(|store_refcell| store_refcell.borrow().state_exists_with_id::<T>(id))
 }
 
 
 /// Clones the state of type T keyed to the given TopoId
-pub fn clone_reactive_state_with_id<T: 'static + Clone>(id: &StorageKey) -> Option<T> {
+pub fn clone_reactive_state_with_id<T: 'static + Clone>(id: StorageKey) -> Option<T> {
     STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
-            .get_state_with_id::<T>(id)
+            .get_state_with_id::<T>(&id)
             .cloned()
     })
 }
 
-pub fn remove_reactive_state_with_id<T: 'static>(id: &StorageKey) -> Option<T> {
+
+pub fn remove_reactive_state_with_id<T: 'static >(id: StorageKey) -> Option<T> {
     
+
+
+STORE.with(|store_refcell| {
+    store_refcell
+        .borrow_mut()
+        .remove_state_with_id::<T>(&id)
+})
+}
+
+pub fn remove_reactive_state_with_id_with_undo<T: 'static + Clone>(id: StorageKey) -> Option<T> {
+    
+    
+    if let Some(previous_state) = clone_reactive_state_with_id::<T>(id){
+        global_undo_queue().update(|u| {
+            u.commands.truncate(u.cursor);
+
+            u.commands.push(
+                crate::undo::Command::new(
+                    RxFunc::new(move||{remove_reactive_state_with_id::<T>(id);}),
+                    RxFunc::new(move||{set_inert_atom_state_with_id::<T>(previous_state.clone(), id);})
+                )
+            );
+            u.cursor +=1 ;
+
+        })
+    } else {
+        global_undo_queue().update(|u| {
+            u.cursor +=1 ;
+        })
+    }        
+
     STORE.with(|store_refcell| {
         store_refcell
             .borrow_mut()
-            .remove_state_with_id::<T>(id)
+            .remove_state_with_id::<T>(&id)
     })
 }
 
 #[derive(Clone)]
 pub struct UndoVec<T>(pub Vec<T>);
-
-pub fn update_atom_state_with_id_with_undo<T: 'static, F: FnOnce(&mut T) -> ()>(id: &StorageKey, func: F) where T:Clone{
-
-    let mut item = remove_reactive_state_with_id::<T>(id)
-        .expect("You are trying to update a type state that doesnt exist in this context!");
-
-    
-    let mut undo_vec = remove_reactive_state_with_id::<UndoVec<T>>(id)
-        .expect("You are trying to update a type state that doesnt exist in this context!");
-    undo_vec.0.push(item.clone());
-
-    set_inert_atom_state_with_id(undo_vec, id);
-    
-
-    func(&mut item);
-    set_inert_atom_state_with_id(item, id);
-    
-    execute_reaction_nodes(id);
-}
 
 pub fn execute_reaction_nodes(id: &StorageKey) {
     let ids_reactions = STORE.with(|refcell_store|{
@@ -306,22 +377,68 @@ pub fn execute_reaction_nodes(id: &StorageKey) {
 }
 
 
-
-pub fn update_atom_state_with_id<T: 'static, F: FnOnce(&mut T) -> ()>(id: &StorageKey, func: F) {
+pub fn update_atom_state_with_id<T: 'static, F: FnOnce(&mut T) -> ()>(id: StorageKey, func: F) where T:'static {
     let mut item = remove_reactive_state_with_id::<T>(id)
         .expect("You are trying to update a type state that doesnt exist in this context!");
     
-    func(&mut item);
     
+  
+    
+    
+    func(&mut item);
 
     set_inert_atom_state_with_id(item, id);
+
     
     //we need to get the associated data with this key
-    execute_reaction_nodes(id);
+    execute_reaction_nodes(&id);
 
 }
 
-pub fn read_reactive_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(id: &StorageKey, func: F) -> R {
+
+pub fn update_atom_state_with_id_with_undo<T: 'static, F: FnOnce(&mut T) -> () >(id: StorageKey, func: F) where T: Clone + 'static {
+    let mut item = remove_reactive_state_with_id::<T>(id)
+        .expect("You are trying to update a type state that doesnt exist in this context!");
+    
+    
+  
+    
+    
+        
+
+
+
+
+     
+         
+        let previous_state = item.clone();
+    func(&mut item);
+
+
+    let new_item = item.clone();
+    global_undo_queue().update(|u| {
+        u.commands.truncate(u.cursor);
+
+        u.commands.push(
+            crate::undo::Command::new(
+                RxFunc::new(move||{set_inert_atom_state_with_id::<T>(new_item.clone(), id);}),
+                RxFunc::new(move||{set_inert_atom_state_with_id::<T>(previous_state.clone(), id);})
+            )
+        );
+        u.cursor +=1 ;
+
+    });
+
+
+    set_inert_atom_state_with_id(item, id);
+
+    
+    //we need to get the associated data with this key
+    execute_reaction_nodes(&id);
+
+}
+
+pub fn read_reactive_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> R {
     let item = remove_reactive_state_with_id::<T>(id)
         .expect("You are trying to read a type state that doesnt exist in this context!");
     let read = func(&item);
@@ -330,7 +447,7 @@ pub fn read_reactive_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(id: &Stora
 }
 
 
-pub fn try_read_reactive_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(id: &StorageKey, func: F) -> Option<R> {
+pub fn try_read_reactive_state_with_id<T: 'static , F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> Option<R> {
     if let Some(item) = remove_reactive_state_with_id::<T>(id){
         let read = func(&item);
         set_inert_atom_state_with_id(item, id);

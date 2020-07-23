@@ -5,6 +5,9 @@ use std::collections::HashMap;
 // use seed::*;
 use std::rc::Rc;
 use std::hash::Hash;
+use atomic_hooks_macros::*;
+use crate::*;
+
 
 
 #[derive(Debug,Clone)]
@@ -47,8 +50,16 @@ pub struct TopoKey
 }
 
 #[derive(Clone)]
-pub struct Reaction {
+pub struct RxFunc {
     pub func: Rc<dyn Fn() -> () + 'static>
+}
+
+impl RxFunc {
+    pub fn new<F: Fn() -> () + 'static>(func:F) -> Self {
+        RxFunc {
+            func: Rc::new(func)
+        }
+    }
 }
 
 pub struct Store {
@@ -68,15 +79,15 @@ impl Store {
         }
     }
 
-    pub fn new_reaction(&mut self, reaction_sm_key: &StorageKey, func: Reaction){
+    pub fn new_reaction(&mut self, reaction_sm_key: &StorageKey, func: RxFunc){
         
         let key = self.id_to_key_map.get(reaction_sm_key).unwrap().clone();
-        if let Some(map) = self.get_mut_secondarymap::<Reaction>(){
+        if let Some(map) = self.get_mut_secondarymap::<RxFunc>(){
             
             map.insert(key, func);
             
         } else {
-            let mut sm: SecondaryMap<DefaultKey, Reaction> = SecondaryMap::new();
+            let mut sm: SecondaryMap<DefaultKey, RxFunc> = SecondaryMap::new();
             sm.insert(key, func);
             self.anymap.insert(sm);
         }
@@ -129,8 +140,8 @@ impl Store {
 
 
 
-    pub(crate) fn state_exists_with_id<T: 'static>(&self, id: &StorageKey) -> bool {
-        match (self.id_to_key_map.get(id), self.get_secondarymap::<T>()) {
+    pub(crate) fn state_exists_with_id<T: 'static>(&self, id: StorageKey) -> bool {
+        match (self.id_to_key_map.get(&id), self.get_secondarymap::<T>()) {
             (Some(existing_key), Some(existing_secondary_map)) => {
                 existing_secondary_map.contains_key(*existing_key)
             }
@@ -180,7 +191,7 @@ impl Store {
     }
 
 
-    pub(crate) fn clone_dep_funcs_for_id(&mut self, id: &StorageKey)-> Vec<(StorageKey, Reaction )>{
+    pub(crate) fn clone_dep_funcs_for_id(&mut self, id: &StorageKey)-> Vec<(StorageKey, RxFunc )>{
         
         let  reaction_keys = self.get_state_with_id::<Vec<DefaultKey>>(id).cloned();
         
@@ -188,7 +199,7 @@ impl Store {
         
         reaction_keys.iter().filter_map(|key|  {
             
-            if let Some(existing_secondary_map) = self.get_mut_secondarymap::<Reaction>() {
+            if let Some(existing_secondary_map) = self.get_mut_secondarymap::<RxFunc>() {
                 
                 if let Some( reaction) =  existing_secondary_map.get(*key).cloned(){
                 
@@ -199,7 +210,7 @@ impl Store {
             } else {
                 None
             }
-        }).collect::<Vec<(StorageKey,Reaction)>>()
+        }).collect::<Vec<(StorageKey,RxFunc)>>()
         }
         else {
             vec![]

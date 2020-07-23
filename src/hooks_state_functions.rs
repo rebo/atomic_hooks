@@ -41,8 +41,6 @@ pub fn use_state<T: 'static, F: FnOnce() -> T>(data_fn: F) -> StateAccess<T> {
 }
 
 ///
-
-///
 ///  Uses the current topological id to create a new state accessor
 ///
 ///
@@ -82,7 +80,7 @@ pub fn set_state_with_topo_id<T: 'static>(data: T, current_id: TopoKey) {
 }
 
 pub fn state_exists_for_topo_id<T: 'static>(id: TopoKey) -> bool {
-    STORE.with(|store_refcell| store_refcell.borrow().state_exists_with_id::<T>(&StorageKey::TopoKey(id)))
+    STORE.with(|store_refcell| store_refcell.borrow().state_exists_with_id::<T>(StorageKey::TopoKey(id)))
 }
 
 fn get_state_slotted_key_struct_if_in_context() -> Option<SlottedKey>{

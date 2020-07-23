@@ -17,7 +17,7 @@ mod marker;
 mod helpers;
 mod observable;
 // mod seed_integration;
-
+pub mod undo;
 
 // public exports
 mod prelude;
