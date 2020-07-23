@@ -1,6 +1,6 @@
 [package]
 name = "atomic_hooks"
-version = "0.1.0"
+version = "0.1.5"
 authors = ["rebo"]
 edition = "2018"
 description = "Atomic Reative State and Local State Hooks"
