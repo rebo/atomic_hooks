@@ -301,7 +301,7 @@ where
 pub trait ObserveChangeReactiveState<T>
 where
 T: Clone + 'static + PartialEq,{
-    fn observe_change(&self)  -> Option<(T,T)>;
+    fn observe_change(&self)  -> (Option<T>,T);
     fn has_changed(&self)  -> bool;
     fn on_change<F: FnOnce(&T,&T)-> R, R>(&self, func: F)  -> R;
 }
@@ -313,15 +313,15 @@ impl<T> ObserveChangeReactiveState<T> for Atom<T>
 where
 T: Clone + 'static + PartialEq,{
     #[topo::nested]
-    fn observe_change(&self)  -> Option<(T,T)>{
+    fn observe_change(&self)  -> (Option<T>,T){
         let previous_value_access = crate::hooks_state_functions::use_state(|| self.get() );
         previous_value_access.get_with(|previous_value|
          self.observe_with(|new_value|
             if *previous_value != *new_value {
                 previous_value_access.set(new_value.clone());
-                Some((previous_value.clone(),new_value.clone()))
+                (Some(previous_value.clone()),new_value.clone())
             } else {
-                None
+                (None,new_value.clone())
             }
          )
     )

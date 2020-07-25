@@ -141,8 +141,9 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
         if first {
         template_quote = quote!(#arg_name_ident.clone(),);
         use_args_quote = quote!(let #arg_name_ident = #arg_name_ident.clone(););
+        
+        first = false;    
         } else {
-            first = false;
             template_quote = quote!(#template_quote #arg_name_ident.clone(),);
             use_args_quote = quote!(#use_args_quote let #arg_name_ident = #arg_name_ident.clone(););
         }
@@ -310,8 +311,9 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
         if first {
         template_quote = quote!(#arg_name_ident.clone(),);
         use_args_quote = quote!(let #arg_name_ident = #arg_name_ident.clone(););
+        
+        first = false;
         } else {
-            first = false;
             template_quote = quote!(#template_quote #arg_name_ident.clone(),);
             use_args_quote = quote!(#use_args_quote let #arg_name_ident = #arg_name_ident.clone(););
         }

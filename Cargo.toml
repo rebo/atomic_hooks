@@ -19,5 +19,4 @@ typemap = "0.3.3"
 atomic_hooks_macros = { git = "https://github.com/rebo/atomic_hooks" }
 # seed = "0.7.0"
 topo = "=0.9.4"
-
-# seed = { git = "https://github.com/seed-rs/seed", rev = "0a538f0" }
+#  seed = { git = "https://github.com/seed-rs/seed", rev = "0a538f0" }
