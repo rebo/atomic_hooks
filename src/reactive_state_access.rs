@@ -242,6 +242,11 @@ where
     pub fn delete(self) {
         self.remove();
     }
+
+    pub fn force_trigger(&self){
+        (clone_reactive_state_with_id::<RxFunc>(self.id).unwrap().func)();
+
+    }
    
 
     pub fn state_exists(self) -> bool {
@@ -308,7 +313,7 @@ T: Clone + 'static + PartialEq,{
 
 use crate::state_access::CloneState;
 
-
+// The below is broke as need None if no prior state
 impl<T> ObserveChangeReactiveState<T> for Atom<T>
 where
 T: Clone + 'static + PartialEq,{
@@ -344,10 +349,48 @@ T: Clone + 'static + PartialEq,{
                 )
             )
         }
-    
-
-
 }
+
+
+
+impl<T> ObserveChangeReactiveState<T> for Reaction<T>
+where
+T: Clone + 'static + PartialEq,{
+    #[topo::nested]
+    fn observe_change(&self)  -> (Option<T>,T){
+        let previous_value_access = crate::hooks_state_functions::use_state(|| self.get() );
+        previous_value_access.get_with(|previous_value|
+         self.observe_with(|new_value|
+            if *previous_value != *new_value {
+                previous_value_access.set(new_value.clone());
+                (Some(previous_value.clone()),new_value.clone())
+            } else {
+                (None,new_value.clone())
+            }
+         )
+    )
+    }
+
+    #[topo::nested]
+    fn has_changed(&self)  -> bool{
+        let previous_value_access = crate::hooks_state_functions::use_state(|| self.get() );
+        previous_value_access.get_with(|previous_value|
+            self.observe_with(|new_value| new_value!= previous_value)
+        )
+    }
+            
+    fn on_change<F: FnOnce(&T,&T)-> R, R>(&self, func: F)  -> R {
+            let previous_value_access = crate::hooks_state_functions::use_state(|| self.get() );
+            previous_value_access.get_with(|previous_value|
+                self.observe_with(|new_value|
+                    func(previous_value,new_value)
+
+                )
+            )
+        }
+}
+
+
 
 
 impl<T> CloneReactiveState<T> for Atom<T>
