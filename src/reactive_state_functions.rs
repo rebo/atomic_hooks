@@ -170,7 +170,7 @@ pub fn reaction_start_suspended<T:'static,F: Fn()->() + 'static>(
 
 
 pub fn unlink_dead_links(id: StorageKey){
-    let context = illicit::Env::get::<RefCell<ReactiveContext>>().expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+    let context = illicit::get::<RefCell<ReactiveContext>>().expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
     if reactive_state_exists_for_id::<ReactiveContext>(id) {
     read_reactive_state_with_id::<ReactiveContext,_,()>(id, |old_context| {
         

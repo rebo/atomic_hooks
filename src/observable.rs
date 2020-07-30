@@ -17,8 +17,9 @@ pub trait Observable<T> where T:'static {
 impl <T>Observable<T> for  Atom<T> where T:'static  {
     fn observe(&self) -> T where T:'static + Clone {
         
-    let context = illicit::Env::get::<RefCell<ReactiveContext>>()
+    let context = illicit::get::<RefCell<ReactiveContext>>()
     .expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+
     context.borrow_mut().reactive_state_accessors.push(self.id);
 
     STORE.with(|store_refcell| {
@@ -40,7 +41,7 @@ impl <T>Observable<T> for  Atom<T> where T:'static  {
     }
 
  fn observe_with<F: FnOnce(&T)-> R,R >(&self, func:F) -> R {
-    if let Some(context) =   illicit::Env::get::<RefCell<ReactiveContext>>() {
+    if let Ok(context) =   illicit::get::<RefCell<ReactiveContext>>() {
         context.borrow_mut().reactive_state_accessors.push(self.id.clone());
 
         STORE.with(|store_refcell| {
@@ -59,7 +60,7 @@ impl <T>Observable<T> for  Atom<T> where T:'static  {
 impl <T>Observable<T> for  AtomUndo<T> where T:'static +Clone {
     fn observe(&self) -> T where T:'static + Clone {
         
-    let context = illicit::Env::get::<RefCell<ReactiveContext>>()
+    let context = illicit::get::<RefCell<ReactiveContext>>()
     .expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
     context.borrow_mut().reactive_state_accessors.push(self.id);
 
@@ -85,7 +86,7 @@ impl <T>Observable<T> for  AtomUndo<T> where T:'static +Clone {
 
 // <T: 'static, F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> R {
  fn observe_with<F: FnOnce(&T)-> R,R >(&self, func:F) -> R {
-    if let Some(context) =   illicit::Env::get::<RefCell<ReactiveContext>>() {
+    if let Ok(context) =   illicit::get::<RefCell<ReactiveContext>>() {
         context.borrow_mut().reactive_state_accessors.push(self.id.clone());
 
         STORE.with(|store_refcell| {
@@ -105,7 +106,7 @@ impl <T>Observable<T> for  AtomUndo<T> where T:'static +Clone {
 impl <T>Observable<T> for  Reaction<T> where T:'static {
     fn observe(&self) -> T where T:Clone {
         
-    let context = illicit::Env::get::<RefCell<ReactiveContext>>()
+    let context = illicit::get::<RefCell<ReactiveContext>>()
     .expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
     context.borrow_mut().reactive_state_accessors.push(self.id);
 
@@ -130,7 +131,7 @@ impl <T>Observable<T> for  Reaction<T> where T:'static {
 
 // <T: 'static, F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> R {
  fn observe_with<F: FnOnce(&T)-> R,R >(&self, func:F) -> R {
-    if let Some(context) =   illicit::Env::get::<RefCell<ReactiveContext>>() {
+    if let Ok(context) =   illicit::get::<RefCell<ReactiveContext>>() {
         context.borrow_mut().reactive_state_accessors.push(self.id.clone());
 
         STORE.with(|store_refcell| {
@@ -149,7 +150,7 @@ impl <T>Observable<T> for  Reaction<T> where T:'static {
 impl <T>Observable<T> for  StateAccess<T> where T:'static {
     fn observe(&self) -> T where T:Clone {
         let id = crate::store::StorageKey::TopoKey(self.id);
-    let context = illicit::Env::get::<RefCell<ReactiveContext>>()
+    let context = illicit::get::<RefCell<ReactiveContext>>()
     .expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
     context.borrow_mut().reactive_state_accessors.push(id);
 
@@ -175,7 +176,7 @@ impl <T>Observable<T> for  StateAccess<T> where T:'static {
 // <T: 'static, F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> R {
  fn observe_with<F: FnOnce(&T)-> R,R >(&self, func:F) -> R {
     let id = crate::store::StorageKey::TopoKey(self.id);
-    if let Some(context) =   illicit::Env::get::<RefCell<ReactiveContext>>() {
+    if let Ok(context) =   illicit::get::<RefCell<ReactiveContext>>() {
         context.borrow_mut().reactive_state_accessors.push(id.clone());
 
         STORE.with(|store_refcell| {

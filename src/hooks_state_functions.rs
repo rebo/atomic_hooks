@@ -84,7 +84,7 @@ pub fn state_exists_for_topo_id<T: 'static>(id: TopoKey) -> bool {
 }
 
 fn get_state_slotted_key_struct_if_in_context() -> Option<SlottedKey>{
-    illicit::Env::get::<RefCell<ReactiveContext>>().map(|ctx| 
+    illicit::get::<RefCell<ReactiveContext>>().ok().map(|ctx| 
     if let StorageKey::SlottedKey(key) = ctx.borrow_mut().key {
         Some(key)}
     else {

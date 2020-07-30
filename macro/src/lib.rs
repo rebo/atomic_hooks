@@ -176,7 +176,7 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
                         topo::root(||{
                             
                             let context = ReactiveContext::new(__id );
-                            illicit::child_env!( std::cell::RefCell<ReactiveContext> => std::cell::RefCell::new(context) ).enter(|| {
+                            illicit::Layer::new().offer(std::cell::RefCell::new(context) ).enter(|| {
                                 
                                 let value = {#body};
                                 #set_inert_with_undo
@@ -333,10 +333,10 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
                             
                             topo::root(||{
                                 
-                            let mut _context = ReactiveContext::new(__id );
+                            let mut context = ReactiveContext::new(__id );
                             {
                             
-                            illicit::child_env!( std::cell::RefCell<ReactiveContext> => std::cell::RefCell::new(_context) ).enter(|| {
+                            illicit::Layer::new().offer(std::cell::RefCell::new(context) ).enter(|| {
                                 
                                 
                                 #use_existing_state
