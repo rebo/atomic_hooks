@@ -1,4 +1,3 @@
-#![feature(track_caller)]
 pub use atomic_hooks_macros::{atom, reaction};
 // storage
 pub mod store;

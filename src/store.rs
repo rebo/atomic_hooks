@@ -5,7 +5,6 @@ use std::collections::HashMap;
 // use seed::*;
 use std::rc::Rc;
 use std::hash::Hash;
-use atomic_hooks_macros::*;
 use crate::*;
 
 
@@ -46,7 +45,7 @@ pub struct SlottedKey
 pub struct TopoKey
 {
     pub ctx: Option<SlottedKey>,
-    pub id: topo::Id,
+    pub id: topo::CallId,
 }
 
 #[derive(Clone)]

@@ -45,7 +45,7 @@ pub fn use_state<T: 'static, F: FnOnce() -> T>(data_fn: F) -> StateAccess<T> {
 ///
 ///
 pub fn use_state_current<T: 'static, F: FnOnce() -> T>(data_fn: F) -> StateAccess<T> {
-    let id = topo::Id::current();
+    let id = topo::CallId::current();
     let ctx = get_state_slotted_key_struct_if_in_context();
 
     let id = TopoKey {
@@ -64,7 +64,7 @@ pub fn use_state_current<T: 'static, F: FnOnce() -> T>(data_fn: F) -> StateAcces
 pub fn new_state<T: 'static, F: FnOnce() -> T>(data_fn: F) -> StateAccess<T> {
     let count = use_state(|| 0);
     count.update(|c| *c += 1);
-    topo::call_in_slot(count.get(), || use_state_current(data_fn))
+    topo::call_in_slot(&count.get(), || use_state_current(data_fn))
 }
 
 /// Sets the state of type T keyed to the given TopoId
@@ -116,7 +116,7 @@ pub fn remove_state_with_topo_id<T: 'static>(id: TopoKey) -> Option<T> {
 /// Example:
 ///
 /// ```
-/// update_state_with_topo_id::<Vec<String>>( topo::Id::current(), |v|
+/// update_state_with_topo_id::<Vec<String>>( topo::CallId::current(), |v|
 ///     v.push("foo".to_string()
 /// )
 ///

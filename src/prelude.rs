@@ -5,7 +5,7 @@
 ///     that state
 ///
 /// topo - re-export of topo crate. Needed to ensure a single version of topo
-/// is used throughout so that user topo::Ids match comp_state topo::Ids.
+/// is used throughout so that user topo::CallIds match comp_state topo::CallIds.
 ///
 /// do_once - a function to do a block once and once only
 ///

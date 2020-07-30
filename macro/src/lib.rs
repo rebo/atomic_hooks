@@ -170,10 +170,10 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
                 let func = move || {
                     #use_args_quote
 
-                    topo::call(||{
+                    
                         
-                        illicit::Env::hide::<topo::Point>();
-                        topo::call(||{
+                        
+                        topo::root(||{
                             
                             let context = ReactiveContext::new(__id );
                             illicit::child_env!( std::cell::RefCell<ReactiveContext> => std::cell::RefCell::new(context) ).enter(|| {
@@ -184,30 +184,13 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
 
 
                         })
-                    })
+                    
                 };
 
                 #atom_fn_ident::<#the_type,_>(__id ,func)
             
         } 
 
-        // fn #atom_default_ident<F:FnOnce() -> #the_type>( #arg_quote default : F ) -> ReactiveStateAccess<#the_type,#marker,IsAnAtomState>{
-        //     let atom_ident = format!(#atom_atom , module_path!(), #template_quote);
-
-        //     #atom_fn_ident::<#the_type,_,#marker,IsAnAtomState>(&atom_ident,default)
-        // } 
-
-        // fn #reset_atom_ident(#arg_quote){
-        //     illicit::Env::hide::<topo::Point>();
-        //     topo::call(||{
-        //         #atom_ident(#use_args_quote).update(|v| {
-        //             *v = {#body}   
-        //             }
-        //         );
-        //     })
-        //  } 
-  
-        
     ).into()
 
 }
@@ -344,11 +327,11 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
                         let func = move || {
                             #use_args_quote
                             
-                            topo::call(||{
-                                
-                            illicit::Env::hide::<topo::Point>();
                             
-                            topo::call(||{
+                                
+                            
+                            
+                            topo::root(||{
                                 
                             let mut _context = ReactiveContext::new(__id );
                             {
@@ -366,7 +349,7 @@ pub fn reaction(args: TokenStream, input: TokenStream) -> TokenStream {
                         }
                         })
                         
-                    })
+                    
                     
 
 
