@@ -1,5 +1,5 @@
-use crate::state_access::{CloneState, StateAccess};
 use crate::hooks_state_functions::use_state;
+use crate::state_access::{CloneState, StateAccess};
 
 /// call the provided function once and once only
 /// returns a unmmunt which will allow the do_once
@@ -19,22 +19,19 @@ pub fn do_once<F: FnMut() -> ()>(mut func: F) -> StateAccess<bool> {
     has_done
 }
 
-
-
-#[derive(Clone,Copy,Debug,PartialEq,Hash,Eq)]
-pub struct Local( topo::CallId );
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+pub struct Local(topo::CallId);
 
 impl std::fmt::Display for Local {
-
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:#?}", self.0)
     }
 }
 
-impl Local{
+impl Local {
     #[topo::nested]
-    pub fn new() -> Local{
-        Local( topo::CallId::current())
+    pub fn new() -> Local {
+        Local(topo::CallId::current())
     }
 }
 
@@ -56,9 +53,7 @@ impl CallSite {
     }
 
     #[track_caller]
-    pub fn loc() ->String {
-       
-            std::panic::Location::caller().to_string()
-       
+    pub fn loc() -> String {
+        std::panic::Location::caller().to_string()
     }
 }

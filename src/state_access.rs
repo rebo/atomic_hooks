@@ -1,6 +1,6 @@
 use crate::hooks_state_functions::*;
-use std::marker::PhantomData;
 use crate::store::TopoKey;
+use std::marker::PhantomData;
 
 ///  Accessor struct that provides access to getting and setting the
 ///  state of the stored type
@@ -31,7 +31,7 @@ impl<T> StateAccess<T>
 where
     T: 'static,
 {
-    pub fn new(id:TopoKey) -> StateAccess<T> {
+    pub fn new(id: TopoKey) -> StateAccess<T> {
         StateAccess {
             id,
             _phantom_data: PhantomData,

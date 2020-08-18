@@ -1,62 +1,56 @@
-pub use std::collections::HashSet;
 use anymap::any::Any;
-use slotmap::{DenseSlotMap,DefaultKey, Key, SecondaryMap};
+use slotmap::{DefaultKey, DenseSlotMap, Key, SecondaryMap};
 use std::collections::HashMap;
+pub use std::collections::HashSet;
 // use seed::*;
-use std::rc::Rc;
-use std::hash::Hash;
 use crate::*;
+use std::hash::Hash;
+use std::rc::Rc;
 
-
-
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct ReactiveContext {
     pub key: StorageKey,
     pub reactive_state_accessors: Vec<StorageKey>,
-    pub always_run : bool,
+    pub always_run: bool,
 }
 
 impl ReactiveContext {
-    pub fn new(key : StorageKey) -> ReactiveContext {
-        ReactiveContext{
+    pub fn new(key: StorageKey) -> ReactiveContext {
+        ReactiveContext {
             key,
-            reactive_state_accessors:vec![],
+            reactive_state_accessors: vec![],
             always_run: false,
         }
     }
 }
 
-#[derive(Clone,Copy,Eq,PartialEq,Debug, Hash)]
-pub enum StorageKey
-{
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash)]
+pub enum StorageKey {
     SlottedKey(SlottedKey),
-    TopoKey(TopoKey)
-} 
-
-
-#[derive(Clone,Copy,Eq,PartialEq,Debug, Hash)]
-pub struct SlottedKey
-{
-    pub location:u64,
-    pub slot:u64,
+    TopoKey(TopoKey),
 }
 
-#[derive(Clone,Copy,Eq,PartialEq,Debug, Hash)]
-pub struct TopoKey
-{
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash)]
+pub struct SlottedKey {
+    pub location: u64,
+    pub slot: u64,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash)]
+pub struct TopoKey {
     pub ctx: Option<SlottedKey>,
     pub id: topo::CallId,
 }
 
 #[derive(Clone)]
 pub struct RxFunc {
-    pub func: Rc<dyn Fn() -> () + 'static>
+    pub func: Rc<dyn Fn() -> () + 'static>,
 }
 
 impl RxFunc {
-    pub fn new<F: Fn() -> () + 'static>(func:F) -> Self {
+    pub fn new<F: Fn() -> () + 'static>(func: F) -> Self {
         RxFunc {
-            func: Rc::new(func)
+            func: Rc::new(func),
         }
     }
 }
@@ -78,13 +72,10 @@ impl Store {
         }
     }
 
-    pub fn new_reaction(&mut self, reaction_sm_key: &StorageKey, func: RxFunc){
-        
+    pub fn new_reaction(&mut self, reaction_sm_key: &StorageKey, func: RxFunc) {
         let key = self.id_to_key_map.get(reaction_sm_key).unwrap().clone();
-        if let Some(map) = self.get_mut_secondarymap::<RxFunc>(){
-            
+        if let Some(map) = self.get_mut_secondarymap::<RxFunc>() {
             map.insert(key, func);
-            
         } else {
             let mut sm: SecondaryMap<DefaultKey, RxFunc> = SecondaryMap::new();
             sm.insert(key, func);
@@ -92,9 +83,8 @@ impl Store {
         }
     }
 
-    fn responsive_map(&mut self) -> &mut SecondaryMap<DefaultKey, Vec<DefaultKey>>{
-
-        if self.get_secondarymap::<Vec<DefaultKey>>().is_none(){
+    fn responsive_map(&mut self) -> &mut SecondaryMap<DefaultKey, Vec<DefaultKey>> {
+        if self.get_secondarymap::<Vec<DefaultKey>>().is_none() {
             self.register_secondarymap::<Vec<DefaultKey>>();
         }
 
@@ -107,26 +97,23 @@ impl Store {
         map.insert(dep_sm_key, vec![]);
     }
 
-    pub fn remove_dependency(&mut self,source_id: &StorageKey, reaction_id:&StorageKey){
-
+    pub fn remove_dependency(&mut self, source_id: &StorageKey, reaction_id: &StorageKey) {
         let source_sm_key = self.id_to_key_map.get(source_id).unwrap().clone();
         let reaction_sm_key = self.id_to_key_map.get(reaction_id).unwrap().clone();
-        
-        
+
         let map = &mut self.responsive_map();
-        
-            if let Some(nodes) = map.get_mut(source_sm_key) {
-                nodes.retain(|n| *n != reaction_sm_key);
-            } else {
-                panic!("Trying to remove a from a state which does not exit")
-            }
+
+        if let Some(nodes) = map.get_mut(source_sm_key) {
+            nodes.retain(|n| *n != reaction_sm_key);
+        } else {
+            panic!("Trying to remove a from a state which does not exit")
+        }
     }
 
-    pub fn add_dependency(&mut self,source_id: &StorageKey, reaction_id:&StorageKey){
-
+    pub fn add_dependency(&mut self, source_id: &StorageKey, reaction_id: &StorageKey) {
         let source_sm_key = self.id_to_key_map.get(source_id).unwrap().clone();
         let reaction_sm_key = self.id_to_key_map.get(reaction_id).unwrap().clone();
-        
+
         let map = &mut self.responsive_map();
         if let Some(nodes) = map.get_mut(source_sm_key) {
             if !nodes.contains(&reaction_sm_key) {
@@ -137,8 +124,6 @@ impl Store {
         }
     }
 
-
-
     pub(crate) fn state_exists_with_id<T: 'static>(&self, id: StorageKey) -> bool {
         match (self.id_to_key_map.get(&id), self.get_secondarymap::<T>()) {
             (Some(existing_key), Some(existing_secondary_map)) => {
@@ -148,11 +133,7 @@ impl Store {
         }
     }
 
-    pub fn get_state_with_id<T: 'static>(
-        &self,
-        current_id: &StorageKey,
-    ) -> Option<&T> {
-
+    pub fn get_state_with_id<T: 'static>(&self, current_id: &StorageKey) -> Option<&T> {
         match (
             self.id_to_key_map.get(current_id),
             self.get_secondarymap::<T>(),
@@ -170,7 +151,6 @@ impl Store {
     ) -> Option<T> {
         // /self.unseen_ids.remove(&current_id);
 
-     
         //unwrap or default to keep borrow checker happy
         let key = self
             .id_to_key_map
@@ -181,52 +161,42 @@ impl Store {
         if key.is_null() {
             None
         } else if let Some(existing_secondary_map) = self.get_mut_secondarymap::<T>() {
-            
-            
             existing_secondary_map.remove(key)
         } else {
             None
         }
     }
 
+    pub(crate) fn clone_dep_funcs_for_id(&mut self, id: &StorageKey) -> Vec<(StorageKey, RxFunc)> {
+        let reaction_keys = self.get_state_with_id::<Vec<DefaultKey>>(id).cloned();
 
-    pub(crate) fn clone_dep_funcs_for_id(&mut self, id: &StorageKey)-> Vec<(StorageKey, RxFunc )>{
-        
-        let  reaction_keys = self.get_state_with_id::<Vec<DefaultKey>>(id).cloned();
-        
-         if let Some(reaction_keys) = &reaction_keys {
-        
-        reaction_keys.iter().filter_map(|key|  {
-            
-            if let Some(existing_secondary_map) = self.get_mut_secondarymap::<RxFunc>() {
-                
-                if let Some( reaction) =  existing_secondary_map.get(*key).cloned(){
-                
-               Some((self.primary_slotmap.get(*key).unwrap().clone(),reaction))
-                } else {
-                    panic!("cannot find {:#?} for id {:#?}",key, id);
-                }
-            } else {
-                None
-            }
-        }).collect::<Vec<(StorageKey,RxFunc)>>()
-        }
-        else {
+        if let Some(reaction_keys) = &reaction_keys {
+            reaction_keys
+                .iter()
+                .filter_map(|key| {
+                    if let Some(existing_secondary_map) = self.get_mut_secondarymap::<RxFunc>() {
+                        if let Some(reaction) = existing_secondary_map.get(*key).cloned() {
+                            Some((self.primary_slotmap.get(*key).unwrap().clone(), reaction))
+                        } else {
+                            panic!("cannot find {:#?} for id {:#?}", key, id);
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<(StorageKey, RxFunc)>>()
+        } else {
             vec![]
-        }    
-    
+        }
     }
 
     pub(crate) fn set_state_with_id<T: 'static>(&mut self, data: T, current_id: &StorageKey) {
-
-        
         //unwrap or default to keep borrow checker happy
         let key = self
             .id_to_key_map
             .get(current_id)
             .copied()
             .unwrap_or_default();
-
 
         if key.is_null() {
             let key = self.primary_slotmap.insert(*current_id);
@@ -258,22 +228,19 @@ impl Store {
         self.anymap.insert(sm);
     }
 
-    pub fn return_key_for_type_and_insert_if_required<T: 'static + Clone + Eq + Hash>(&mut self, id: StorageKey, value: T) -> StorageKey {
-        
+    pub fn return_key_for_type_and_insert_if_required<T: 'static + Clone + Eq + Hash>(
+        &mut self,
+        id: StorageKey,
+        value: T,
+    ) -> StorageKey {
         //unwrap or default to keep borrow checker happy
-        let key = self
-            .id_to_key_map
-            .get(&id)
-            .copied()
-            .unwrap_or_default();
-
+        let key = self.id_to_key_map.get(&id).copied().unwrap_or_default();
 
         if key.is_null() {
             let key = self.primary_slotmap.insert(id);
             self.id_to_key_map.insert(id, key);
             if let Some(sec_map) = self.get_mut_secondarymap::<T>() {
-
-                if let Some(item)  = sec_map.get(key){
+                if let Some(item) = sec_map.get(key) {
                     if item == &value {
                         id
                     } else {
@@ -283,16 +250,13 @@ impl Store {
                     sec_map.insert(key, value);
                     id
                 }
-        
-
             } else {
                 self.register_secondarymap::<T>();
-                self.get_mut_secondarymap::<T>().unwrap().insert(key,value);
+                self.get_mut_secondarymap::<T>().unwrap().insert(key, value);
                 id
             }
         } else if let Some(existing_secondary_map) = self.get_mut_secondarymap::<T>() {
-            
-            if let Some(item)  = existing_secondary_map.get(key){
+            if let Some(item) = existing_secondary_map.get(key) {
                 if item == &value {
                     id
                 } else {
@@ -303,13 +267,9 @@ impl Store {
                 id
             }
         } else {
-
             self.register_secondarymap::<T>();
-            self.get_mut_secondarymap::<T>().unwrap().insert(key,value);
+            self.get_mut_secondarymap::<T>().unwrap().insert(key, value);
             id
-
         }
     }
-
-   
 }
