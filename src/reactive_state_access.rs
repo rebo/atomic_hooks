@@ -6,6 +6,8 @@ use std::marker::PhantomData;
 // use seed::prelude::*;
 // marker types
 
+/// An atom is a unit that represent a piece of stateful data with an id and owns that piece of data or refer to it
+/// todo can you explain me the Atome concept please :D
 pub struct Atom<T> {
     pub id: StorageKey,
     pub _phantom_data_stored_type: PhantomData<T>,
