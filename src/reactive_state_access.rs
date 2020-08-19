@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 // use seed::prelude::*;
 // marker types
 
-/// An atom is subscribable and changeable piece of state.
+/// An atom is an observable and changeable piece of state.
 /// You can use it to update a components and rerender specific part of the DOM
 pub struct Atom<T> {
     pub id: StorageKey,
@@ -43,7 +43,7 @@ where
         }
     }
 
-    /// Stores a value of type T in a backing Store **without** reaction for subscribers
+    /// Stores a value of type T in a backing Store **without** reaction for observers
     ///  ## Todo doc
     /// - add example maybe
     /// - When to use it
@@ -53,7 +53,7 @@ where
     {
         set_inert_atom_state_with_id(value, self.id);
     }
-    /// Stores a value of type T in a backing Store **with** a reaction for subscribers
+    /// Stores a value of type T in a backing Store **with** a reaction for observers
     ///  ## Todo doc
     /// - add example maybe
     /// - When to use it
@@ -65,7 +65,7 @@ where
     }
 
     /// Pass a function that update the atom state related
-    /// This update will trigger reactions and subscribers will get the update
+    /// This update will trigger reactions and observers will get the update
     ///  ## Todo doc
     /// - add example maybe
     /// - When to use it
