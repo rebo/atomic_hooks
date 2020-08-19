@@ -6,8 +6,8 @@ use std::marker::PhantomData;
 // use seed::prelude::*;
 // marker types
 
-/// An atom is a unit that represent a piece of stateful data with an id and owns that piece of data or refer to it
-/// todo can you explain me the Atome concept please :D
+/// An atom is subscribable and changeable piece of state.
+/// You can use it to update a components and rerender specific part of the DOM
 pub struct Atom<T> {
     pub id: StorageKey,
     pub _phantom_data_stored_type: PhantomData<T>,
@@ -22,7 +22,7 @@ impl<T> std::fmt::Debug for Atom<T> {
 impl<T> Clone for Atom<T> {
     fn clone(&self) -> Atom<T> {
         Atom::<T> {
-            id: self.id,
+            id: self.id, // is is not supposed to be unique ?
 
             _phantom_data_stored_type: PhantomData::<T>,
         }
@@ -35,7 +35,7 @@ impl<T> Atom<T>
 where
     T: 'static,
 {
-    /// Instantiate a new piece of data
+    /// Instantiate a new atom
     pub fn new(id: StorageKey) -> Atom<T> {
         Atom {
             id,
@@ -43,14 +43,20 @@ where
         }
     }
 
-    // stores a value of type T in a backing Store
+    /// Stores a value of type T in a backing Store **without** reaction for subscribers
+    ///  ## Todo doc
+    /// - add example maybe
+    /// - When to use it
     pub fn inert_set(self, value: T)
     where
         T: 'static,
     {
         set_inert_atom_state_with_id(value, self.id);
     }
-    // stores a value of type T in a backing Store
+    /// Stores a value of type T in a backing Store **with** a reaction for subscribers
+    ///  ## Todo doc
+    /// - add example maybe
+    /// - When to use it
     pub fn set(self, value: T)
     where
         T: 'static,
@@ -58,6 +64,15 @@ where
         set_atom_state_with_id(value, self.id);
     }
 
+    /// Pass a function that update the atom state related
+    /// This update will trigger reactions and subscribers will get the update
+    ///  ## Todo doc
+    /// - add example maybe
+    /// - When to use it
+    ///
+    /// This is use for example when we want to update a component rendering depending of a state.
+    /// We update the atom so the component will rerender with the new state.
+    /// If many components subscribed to the atom, then all of them will get the update.
     pub fn update<F: FnOnce(&mut T) -> ()>(&self, func: F)
     where
         T: 'static,
@@ -68,14 +83,21 @@ where
         self.id
     }
 
+    /// Use to remove an atom from the global state
     pub fn remove(self) -> Option<T> {
         remove_reactive_state_with_id(self.id)
     }
-
+    /// ## Question :
+    /// Why do we have remove and delete ?
+    ///  ## Todo doc
+    /// - add example maybe
+    /// - When to use it
     pub fn delete(self) {
         self.remove();
     }
-
+    ///  ## Todo doc
+    /// - add example maybe
+    /// - When to use it
     pub fn reset_to_default(&self) {
         (clone_reactive_state_with_id::<RxFunc>(self.id)
             .unwrap()
@@ -83,14 +105,26 @@ where
         execute_reaction_nodes(&self.id);
     }
 
+    /// Check if the state does exists in the store
+    ///  ## Todo doc
+    /// - add example maybe
+    /// - When to use it
     pub fn state_exists(self) -> bool {
         reactive_state_exists_for_id::<T>(self.id)
     }
 
+    /// Get the state without reactions
+    ///  ## Todo doc
+    /// - add example maybe
+    /// - When to use it
     pub fn get_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
         read_reactive_state_with_id(self.id, func)
     }
 
+    /// Triggers the passed function when the atom is updated
+    ///  ## Todo doc
+    /// - add example maybe
+    /// - When to use it
     pub fn on_update<F: FnOnce() -> R, R>(&self, func: F) -> Option<R> {
         let mut recalc = false;
         self.observe_with(|_| recalc = true);
