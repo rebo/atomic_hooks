@@ -136,6 +136,9 @@ where
     }
 }
 
+///
+/// An AtomUndo is similar to a regular atom except that its is reversible and is stored in a global state.
+///
 pub struct AtomUndo<T>
 where
     T: Clone,
@@ -343,6 +346,7 @@ where
     fn get(&self) -> T;
     fn soft_get(&self) -> Option<T>;
 }
+
 pub trait ObserveChangeReactiveState<T>
 where
     T: Clone + 'static + PartialEq,
@@ -521,5 +525,53 @@ where
 
     fn sub(self, other: Self) -> Self::Output {
         self.get_with(|s| other.get_with(|o| *o - *s))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::*;
+    use atomic_hooks_macros::*;
+    use store::RxFunc;
+    #[atom(undo)]
+    fn a() -> AtomUndo<i32> {
+        0
+    }
+
+    #[atom(undo)]
+    fn b() -> AtomUndo<i32> {
+        0
+    }
+
+    #[test]
+    fn test_undo() {
+        a().set(3);
+
+        a().set(5);
+
+        b().set(10);
+
+        a().set(4);
+
+        assert_eq!(a().get(), 4, "We should get 4 as value for a");
+        global_undo_queue().travel_backwards();
+        assert_eq!(b().get(), 10, "We should get 10 as value for b");
+        global_undo_queue().travel_backwards();
+        assert_eq!(a().get(), 5, "We should get 5 as value for a");
+        eprintln!("{:?}", a().get());
+        eprintln!("{:?}", global_undo_queue());
+
+        global_undo_queue().travel_backwards(); // Why do we need 2 times         global_undo_queue().travel_backwards(); ?
+        eprintln!("{:?}", a().get());
+        eprintln!("{:?}", global_undo_queue());
+        global_undo_queue().travel_backwards();
+
+        assert_eq!(a().get(), 3, "We should get 3 as value for a");
+        eprintln!("{:?}", a().get());
+        eprintln!("{:?}", global_undo_queue());
+        global_undo_queue().travel_backwards();
+
+        assert_eq!(a().get(), 0, "We should get 0 as value for a");
     }
 }
