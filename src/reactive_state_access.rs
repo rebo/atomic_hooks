@@ -595,7 +595,7 @@ mod test {
     use store::RxFunc;
 
     #[atom]
-    fn a() -> AtomUndo<i32> {
+    fn a() -> Atom<i32> {
         0
     }
 
@@ -646,12 +646,28 @@ mod test {
     #[test]
     fn test_update() {
         a_reversible().update(|state| *state = 45);
-        assert_eq!(a_reversible().get(), 45, "We should get 3 as value for a");
+        assert_eq!(a_reversible().get(), 45, "We should get 45 as value for a");
+
+        a().update(|state| *state = 40);
+        assert_eq!(a().get(), 40, "We should get 40 as value for a");
     }
 
-    // #[test]
-    // fn test_update() {
-    //     a_reversible().update(|state| *state = 45);
-    //     assert_eq!(a_reversible().get(), 45, "We should get 3 as value for a");
-    // }
+    #[test]
+    fn test_delete() {
+        a_reversible().delete();
+
+        eprintln!("{:?}", a_reversible().get());
+
+        assert_eq!(
+            a_reversible().state_exists(),
+            false,
+            "The state  a_reversible should not exist"
+        );
+
+        a().delete();
+
+        eprintln!("{:?}", a().get());
+
+        assert_eq!(a().state_exists(), false, "The a state should not exist");
+    }
 }
