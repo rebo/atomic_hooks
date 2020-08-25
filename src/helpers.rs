@@ -1,5 +1,7 @@
-use crate::hooks_state_functions::use_state;
-use crate::state_access::{CloneState, StateAccess};
+use crate::{
+    hooks_state_functions::use_state,
+    state_access::{CloneState, StateAccess},
+};
 
 /// call the provided function once and once only
 /// returns a unmmunt which will allow the do_once

@@ -4,8 +4,7 @@ use std::collections::HashMap;
 pub use std::collections::HashSet;
 // use seed::*;
 use crate::*;
-use std::hash::Hash;
-use std::rc::Rc;
+use std::{hash::Hash, rc::Rc};
 
 #[derive(Debug, Clone)]
 pub struct ReactiveContext {

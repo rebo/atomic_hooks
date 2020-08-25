@@ -1,12 +1,14 @@
-use crate::reactive_state_access::{Atom, AtomUndo, CloneReactiveState, Reaction};
-use crate::state_access::{CloneState, StateAccess};
+use crate::{
+    reactive_state_access::{Atom, AtomUndo, CloneReactiveState, Reaction},
+    state_access::{CloneState, StateAccess},
+};
 
 use std::cell::RefCell;
 
-use crate::reactive_state_functions::{
-    clone_reactive_state_with_id, read_reactive_state_with_id, STORE,
+use crate::{
+    reactive_state_functions::{clone_reactive_state_with_id, read_reactive_state_with_id, STORE},
+    store::ReactiveContext,
 };
-use crate::store::ReactiveContext;
 
 pub trait Observable<T>
 where
@@ -30,8 +32,10 @@ where
     where
         T: 'static + Clone,
     {
-        let context = illicit::get::<RefCell<ReactiveContext>>()
-    .expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+        let context = illicit::get::<RefCell<ReactiveContext>>().expect(
+            "No #[reaction] context found, are you sure you are in one? I.e. does the current \
+             function have a #[reaction] tag?",
+        );
 
         context.borrow_mut().reactive_state_accessors.push(self.id);
 
@@ -81,8 +85,10 @@ where
     where
         T: 'static + Clone,
     {
-        let context = illicit::get::<RefCell<ReactiveContext>>()
-    .expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+        let context = illicit::get::<RefCell<ReactiveContext>>().expect(
+            "No #[reaction] context found, are you sure you are in one? I.e. does the current \
+             function have a #[reaction] tag?",
+        );
         context.borrow_mut().reactive_state_accessors.push(self.id);
 
         STORE.with(|store_refcell| {
@@ -132,8 +138,10 @@ where
     where
         T: Clone,
     {
-        let context = illicit::get::<RefCell<ReactiveContext>>()
-    .expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+        let context = illicit::get::<RefCell<ReactiveContext>>().expect(
+            "No #[reaction] context found, are you sure you are in one? I.e. does the current \
+             function have a #[reaction] tag?",
+        );
         context.borrow_mut().reactive_state_accessors.push(self.id);
 
         STORE.with(|store_refcell| {
@@ -184,8 +192,10 @@ where
         T: Clone,
     {
         let id = crate::store::StorageKey::TopoKey(self.id);
-        let context = illicit::get::<RefCell<ReactiveContext>>()
-    .expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+        let context = illicit::get::<RefCell<ReactiveContext>>().expect(
+            "No #[reaction] context found, are you sure you are in one? I.e. does the current \
+             function have a #[reaction] tag?",
+        );
         context.borrow_mut().reactive_state_accessors.push(id);
 
         STORE.with(|store_refcell| {

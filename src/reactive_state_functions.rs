@@ -1,9 +1,9 @@
-use crate::reactive_state_access::{Atom, AtomUndo, Reaction};
-use crate::store::{ReactiveContext, RxFunc, SlottedKey, StorageKey, Store};
-use crate::undo::global_undo_queue;
-use std::cell::RefCell;
-use std::hash::Hash;
-use std::rc::Rc;
+use crate::{
+    reactive_state_access::{Atom, AtomUndo, Reaction},
+    store::{ReactiveContext, RxFunc, SlottedKey, StorageKey, Store},
+    undo::global_undo_queue,
+};
+use std::{cell::RefCell, hash::Hash, rc::Rc};
 
 // use seed::{*,prelude};
 
@@ -12,9 +12,9 @@ thread_local! {
 }
 
 //
-//  Constructs a T atom state accessor. T is stored keyed to the provided String id.
-//  The accessor always references this id therefore can you can set/update/ or get this T
-//  from anywhere.
+//  Constructs a T atom state accessor. T is stored keyed to the provided String
+// id.  The accessor always references this id therefore can you can set/update/
+// or get this T  from anywhere.
 //
 //   The passed closure is only used for the first initialisation of state.
 //   Subsequent evaluations of this function just returns the accessor.
@@ -82,12 +82,13 @@ pub fn atom_undo<T: 'static + Clone, F: Fn() -> () + 'static>(
 }
 
 //
-//  Constructs a T reaction state accessor. T is stored keyed to the provided String id.
-//  The accessor always references this id. Typically reaction values are auto
-//  created based on changes to their dependencies which could be other reaction values or an
-//  atom state.
+//  Constructs a T reaction state accessor. T is stored keyed to the provided
+// String id.  The accessor always references this id. Typically reaction values
+// are auto  created based on changes to their dependencies which could be other
+// reaction values or an  atom state.
 //
-//   The passed closure is run whenever a dependency of the reaction state has been updated.
+//   The passed closure is run whenever a dependency of the reaction state has
+// been updated.
 //
 //
 // Typically this is created via the #[reaction] attribute macro
@@ -142,7 +143,10 @@ pub fn reaction_start_suspended<T: 'static, F: Fn() -> () + 'static>(
 }
 
 pub fn unlink_dead_links(id: StorageKey) {
-    let context = illicit::get::<RefCell<ReactiveContext>>().expect("No #[reaction] context found, are you sure you are in one? I.e. does the current function have a #[reaction] tag?");
+    let context = illicit::get::<RefCell<ReactiveContext>>().expect(
+        "No #[reaction] context found, are you sure you are in one? I.e. does the current \
+         function have a #[reaction] tag?",
+    );
     if reactive_state_exists_for_id::<ReactiveContext>(id) {
         read_reactive_state_with_id::<ReactiveContext, _, ()>(id, |old_context| {
             let ids_to_remove = old_context
@@ -381,8 +385,7 @@ pub fn try_read_reactive_state_with_id<T: 'static, F: FnOnce(&T) -> R, R>(
 pub fn return_key_for_type_and_insert_if_required<T: 'static + Clone + Eq + Hash>(
     value: T,
 ) -> StorageKey {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hasher;
+    use std::{collections::hash_map::DefaultHasher, hash::Hasher};
 
     let mut hasher = DefaultHasher::new();
     value.hash(&mut hasher);
@@ -400,8 +403,9 @@ pub fn return_key_for_type_and_insert_if_required<T: 'static + Clone + Eq + Hash
     })
 }
 
-// fn deep_collision_check_for_state_id<T: 'static>(id:StorageKey, item:T, stored_value:T) -> StorageKey {
-//     if let Some() = remove_reactive_state_with_id::<Vec<(T,StorageKey)>(id) {
+// fn deep_collision_check_for_state_id<T: 'static>(id:StorageKey, item:T,
+// stored_value:T) -> StorageKey {     if let Some() =
+// remove_reactive_state_with_id::<Vec<(T,StorageKey)>(id) {
 
 //     } else {
 //         set_inert_atom_state_with_id(vec![], id);
