@@ -165,7 +165,7 @@ where
     }
     /// Reset to the initial value
     /// ```
-    /// use atomic_hooks::Atom;
+    /// use atomic_hooks::{Atom, CloneReactiveState};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -218,9 +218,37 @@ where
     }
 
     /// Triggers the passed function when the atom is updated
+    /// This method needs to be use inside a function body that has the
+    /// attributes **[reaction]**
+    ///
+    /// ```
+    /// #[reaction]
+    /// fn count_print_when_update() -> Reaction<i32> {
+    ///     let c = c();
+    ///     let update = a().on_update(|| {
+    ///         println!("UPDATE !!!");
+    ///         c.update(|mut v| *v = *v + 1)
+    ///     });
+    ///     c.get()
+    /// }
+    ///
+    /// #[test]
+    /// fn test_on_update() {
+    ///     let print = count_print_when_update();
+    ///     a().update(|v| *v = 32);
+    ///     a().set(2);
+    ///     a().set(25);
+    ///     a().set(1);
+    ///
+    ///     println!("{:?}", print.get());
+    ///
+    ///     assert_eq!(print.get(), 5)
+    /// }
+    /// ```
+    ///
     ///  ## Todo doc
-    /// - add example maybe
     /// - When to use it
+    /// - Improve the doc
     pub fn on_update<F: FnOnce() -> R, R>(&self, func: F) -> Option<R> {
         let mut recalc = false;
         self.observe_with(|_| recalc = true);
@@ -801,6 +829,21 @@ mod test {
         (a - b)
     }
 
+    #[atom]
+    fn c() -> Atom<i32> {
+        0
+    }
+
+    #[reaction]
+    fn count_print_when_update() -> Reaction<i32> {
+        let c = c();
+        let update = a().on_update(|| {
+            println!("UPDATE !!!");
+            c.update(|mut v| *v = *v + 1)
+        });
+        c.get()
+    }
+
     #[atom(undo)]
     fn a_reversible() -> AtomUndo<i32> {
         0
@@ -827,7 +870,17 @@ mod test {
     }
 
     #[test]
-    fn test_on_update() {}
+    fn test_on_update() {
+        let print = count_print_when_update();
+        a().update(|v| *v = 32);
+        a().set(2);
+        a().set(25);
+        a().set(1);
+
+        println!("{:?}", print.get());
+
+        assert_eq!(print.get(), 5)
+    }
 
     #[test]
     fn test_undo() {
