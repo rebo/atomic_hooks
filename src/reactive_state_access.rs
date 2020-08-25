@@ -593,47 +593,65 @@ mod test {
     use crate::*;
     use atomic_hooks_macros::*;
     use store::RxFunc;
-    #[atom(undo)]
+
+    #[atom]
     fn a() -> AtomUndo<i32> {
         0
     }
 
     #[atom(undo)]
-    fn b() -> AtomUndo<i32> {
+    fn a_reversible() -> AtomUndo<i32> {
+        0
+    }
+
+    #[atom(undo)]
+    fn b_reversible() -> AtomUndo<i32> {
         0
     }
 
     #[test]
     fn test_undo() {
-        a().set(3);
+        a_reversible().set(3);
 
-        a().set(5);
+        a_reversible().set(5);
 
-        b().set(10);
+        b_reversible().set(10);
 
-        a().set(4);
+        a_reversible().set(4);
 
-        assert_eq!(a().get(), 4, "We should get 4 as value for a");
+        assert_eq!(a_reversible().get(), 4, "We should get 4 as value for a");
         global_undo_queue().travel_backwards();
-        assert_eq!(b().get(), 10, "We should get 10 as value for b");
+        assert_eq!(b_reversible().get(), 10, "We should get 10 as value for b");
         global_undo_queue().travel_backwards();
-        assert_eq!(a().get(), 5, "We should get 5 as value for a");
-        eprintln!("{:?}", a().get());
-        eprintln!("{:?}", b().get());
+        assert_eq!(a_reversible().get(), 5, "We should get 5 as value for a");
+        eprintln!("{:?}", a_reversible().get());
+        eprintln!("{:?}", b_reversible().get());
         eprintln!("{:?}", global_undo_queue());
 
         global_undo_queue().travel_backwards(); // Why do we need 2 times         global_undo_queue().travel_backwards(); ?
-        eprintln!("{:?}", a().get());
-        eprintln!("{:?}", b().get());
+        eprintln!("{:?}", a_reversible().get());
+        eprintln!("{:?}", b_reversible().get());
         eprintln!("{:?}", global_undo_queue());
         global_undo_queue().travel_backwards();
         global_undo_queue().travel_backwards();
-        assert_eq!(a().get(), 3, "We should get 3 as value for a");
-        eprintln!("{:?}", a().get());
-        eprintln!("{:?}", b().get());
+        assert_eq!(a_reversible().get(), 3, "We should get 3 as value for a");
+        eprintln!("{:?}", a_reversible().get());
+        eprintln!("{:?}", b_reversible().get());
         eprintln!("{:?}", global_undo_queue());
         global_undo_queue().travel_backwards();
         global_undo_queue().travel_backwards();
-        assert_eq!(a().get(), 0, "We should get 0 as value for a");
+        assert_eq!(a_reversible().get(), 0, "We should get 0 as value for a");
     }
+
+    #[test]
+    fn test_update() {
+        a_reversible().update(|state| *state = 45);
+        assert_eq!(a_reversible().get(), 45, "We should get 3 as value for a");
+    }
+
+    // #[test]
+    // fn test_update() {
+    //     a_reversible().update(|state| *state = 45);
+    //     assert_eq!(a_reversible().get(), 45, "We should get 3 as value for a");
+    // }
 }
