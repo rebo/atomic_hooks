@@ -66,7 +66,7 @@ where
     }
     /// Stores a value of type T in a backing Store **with** a reaction for observers
     ///  ```
-    /// use atomic_hooks::Atom;
+    /// use atomic_hooks::{Atom, CloneReactiveState};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     /// 0
@@ -89,7 +89,7 @@ where
     /// Pass a function that update the atom state related
     /// This update will trigger reactions and observers will get the update
     /// ```
-    /// use atomic_hooks::Atom;
+    /// use atomic_hooks::{Atom, CloneReactiveState};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     /// 0
