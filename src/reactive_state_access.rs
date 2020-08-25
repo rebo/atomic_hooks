@@ -198,9 +198,18 @@ where
         reactive_state_exists_for_id::<T>(self.id)
     }
 
-    /// Get the state without reactions
+    /// Allow you to get the state through a reference with a closure
+    /// ```
+    /// use atomic_hooks::Atom;
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    /// a().set(3);
+    ///
+    /// a().get_with(|v| assert_eq!(v, &3, "We should get 3"));
+    /// ```
     ///  ## Todo doc
-    /// - add example maybe
     /// - When to use it
     pub fn get_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
         read_reactive_state_with_id(self.id, func)
@@ -448,6 +457,19 @@ where
         reactive_state_exists_for_id::<T>(self.id)
     }
 
+    /// Allow you to get the state through a reference with a closure
+    /// ```
+    /// use atomic_hooks::AtomUndo;
+    /// #[atom(undo)]
+    /// fn a() -> AtomUndo<i32> {
+    ///     0
+    /// }
+    /// a().set(3);
+    ///
+    /// a().get_with(|v| assert_eq!(v, &3, "We should get 3"));
+    /// ```
+    ///  ## Todo doc
+    /// - When to use it
     pub fn get_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
         read_reactive_state_with_id(self.id, func)
     }
@@ -786,6 +808,24 @@ mod test {
     fn b_reversible() -> AtomUndo<i32> {
         0
     }
+
+    #[test]
+    fn test_get_with() {
+        a_reversible().set(3);
+        b_reversible().set(5);
+
+        a_reversible().get_with(|v| assert_eq!(v, &3, "We should get 3"));
+        b_reversible().get_with(|v| assert_eq!(v, &5, "We should get 5"));
+
+        a().set(3);
+        b().set(5);
+
+        a().get_with(|v| assert_eq!(v, &3, "We should get 3"));
+        b().get_with(|v| assert_eq!(v, &5, "We should get 5"));
+    }
+
+    #[test]
+    fn test_update_on() {}
 
     #[test]
     fn test_undo() {
