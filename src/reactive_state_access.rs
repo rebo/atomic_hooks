@@ -599,6 +599,24 @@ mod test {
         0
     }
 
+    #[atom]
+    fn b() -> Atom<i32> {
+        0
+    }
+
+    #[reaction]
+    fn a_b_subtraction() -> Reaction<i32> {
+        let a = a().observe();
+        let b = b().observe();
+        (a - b)
+    }
+    #[reaction]
+    fn a_b_reversible_subtraction() -> Reaction<i32> {
+        let a = a_reversible().observe();
+        let b = b_reversible().observe();
+        (a - b)
+    }
+
     #[atom(undo)]
     fn a_reversible() -> AtomUndo<i32> {
         0
@@ -645,13 +663,33 @@ mod test {
 
     #[test]
     fn test_update() {
+        a_reversible().set(10);
+        b_reversible().set(10);
+
         a_reversible().update(|state| *state = 45);
+
         assert_eq!(a_reversible().get(), 45, "We should get 45 as value for a");
 
         a().update(|state| *state = 40);
         assert_eq!(a().get(), 40, "We should get 40 as value for a");
     }
+    #[test]
+    fn test_inert_set() {
+        a_reversible().inert_set(155);
+        assert_eq!(a_reversible().get(), 155, "We should get 155");
 
+        let a_b_subtraction = a_b_subtraction();
+        a().set(0);
+        b().set(0);
+
+        a().inert_set(165);
+        assert_eq!(
+            a_b_subtraction.get(),
+            0,
+            "We should get 0 for subtraction because inert setting"
+        );
+        assert_eq!(a().get(), 165, "We should get 165");
+    }
     #[test]
     fn test_delete() {
         a_reversible().delete();
@@ -669,5 +707,70 @@ mod test {
         eprintln!("{:?}", a().get());
 
         assert_eq!(a().state_exists(), false, "The a state should not exist");
+    }
+    #[test]
+    fn test_reaction() {
+        let a_b_subtraction = a_b_subtraction();
+        a().set(0);
+        b().set(0);
+        a().update(|state| *state = 40);
+        assert_eq!(a().get(), 40, "We should get 40 as value for a");
+        assert_eq!(
+            a_b_subtraction.get(),
+            40,
+            "We should get 40 for subtraction because setting"
+        );
+
+        b().set(10);
+        assert_eq!(
+            a_b_subtraction.get(),
+            30,
+            "We should get 40 for subtraction because setting"
+        );
+        b().inert_set(0);
+        assert_eq!(
+            a_b_subtraction.get(),
+            30,
+            "We should get 30 for subtraction because setting inert"
+        );
+        b().set(20);
+        assert_eq!(
+            a_b_subtraction.get(),
+            20,
+            "We should get 20 for subtraction because setting"
+        );
+    }
+    #[test]
+    fn test_reversible_reaction() {
+        let a_b_reversible_subtraction = a_b_reversible_subtraction();
+        a_reversible().set(0);
+        b_reversible().set(0);
+        a_reversible().update(|state| *state = 40);
+        assert_eq!(a_reversible().get(), 40, "We should get 40 as value for a");
+        assert_eq!(
+            a_b_reversible_subtraction.get(),
+            40,
+            "We should get 40 for subtraction because setting"
+        );
+
+        global_undo_queue().travel_backwards();
+        assert_eq!(
+            a_b_reversible_subtraction.get(),
+            0,
+            "We should get 0 because back in time"
+        );
+
+        b_reversible().inert_set(0);
+        assert_eq!(
+            a_b_reversible_subtraction.get(),
+            0,
+            "We should get 0 for subtraction because setting inert"
+        );
+        a_reversible().set(20);
+        assert_eq!(
+            a_b_reversible_subtraction.get(),
+            20,
+            "We should get 20 for subtraction because setting"
+        );
     }
 }
