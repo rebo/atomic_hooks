@@ -54,7 +54,19 @@ where
         set_inert_atom_state_with_id(value, self.id);
     }
     /// Stores a value of type T in a backing Store **with** a reaction for observers
-    ///  ## Todo doc
+    ///  ```
+    /// use atomic_hooks::atom;
+    /// #[atom]
+    ///
+    /// fn a() -> Atom<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().set(1);
+    ///
+    /// assert_eq!(a().get(), 1);
+    ///
+    ///  ```
     /// - add example maybe
     /// - When to use it
     pub fn set(self, value: T)
@@ -66,13 +78,20 @@ where
 
     /// Pass a function that update the atom state related
     /// This update will trigger reactions and observers will get the update
-    ///  ## Todo doc
-    /// - add example maybe
-    /// - When to use it
+    /// ```
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    /// 0
+    /// }
+    ///  a().update(|state| *state = 45);
+    ///  assert_eq!(a().get(), 45, "We should get 3 as value for a");
+    ///
+    /// ```
     ///
     /// This is use for example when we want to update a component rendering depending of a state.
     /// We update the atom so the component will rerender with the new state.
     /// If many components subscribed to the atom, then all of them will get the update.
+    ///
     pub fn update<F: FnOnce(&mut T) -> ()>(&self, func: F)
     where
         T: 'static,
@@ -138,6 +157,46 @@ where
 
 ///
 /// An AtomUndo is similar to a regular atom except that its is reversible and is stored in a global state.
+/// ```
+/// use atomic_hooks_macros::*;
+/// use store::RxFunc;
+/// use atomic_hooks::{global_undo_queue, AtomUndo, GlobalUndo, CloneReactiveState};
+///
+/// #[atom(undo)]
+/// fn a() -> AtomUndo<i32> {
+///     0
+/// }
+///
+/// #[atom(undo)]
+///fn b() -> AtomUndo<i32> {
+///    0
+/// }
+///
+///
+/// fn test_undo() {
+///   a().set(3);
+///
+///   a().set(5);
+///
+///   b().set(10);
+///
+///   a().set(4);
+///
+///     assert_eq!(a().get(), 4, "We should get 4 as value for a");
+///
+///     global_undo_queue().travel_backwards();
+///     assert_eq!(b().get(), 10, "We should get 10 as value for b");
+///
+///     global_undo_queue().travel_backwards();
+///     assert_eq!(a().get(), 5, "We should get 5 as value for a");
+///
+///     global_undo_queue().travel_backwards();
+///     assert_eq!(a().get(), 3, "We should get 3 as value for a");
+///
+///     global_undo_queue().travel_backwards();
+///     assert_eq!(a().get(), 0, "We should get 0 as value for a");
+/// }
+///  ```
 ///
 pub struct AtomUndo<T>
 where
