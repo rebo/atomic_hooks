@@ -45,6 +45,17 @@ where
 
     /// Stores a value of type T in a backing Store **without** reaction for observers
     ///  ## Todo doc
+    /// ```
+    ///
+    /// use atomic_hooks::Atom;
+    /// fn a() -> Atom<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().inert_set(1);
+    ///
+    /// assert_eq!(a().get(), 1);
+    /// ```
     /// - add example maybe
     /// - When to use it
     pub fn inert_set(self, value: T)
@@ -55,9 +66,8 @@ where
     }
     /// Stores a value of type T in a backing Store **with** a reaction for observers
     ///  ```
-    /// use atomic_hooks::atom;
+    /// use atomic_hooks::Atom;
     /// #[atom]
-    ///
     /// fn a() -> Atom<i32> {
     /// 0
     /// }
@@ -79,12 +89,13 @@ where
     /// Pass a function that update the atom state related
     /// This update will trigger reactions and observers will get the update
     /// ```
+    /// use atomic_hooks::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     /// 0
     /// }
     ///  a().update(|state| *state = 45);
-    ///  assert_eq!(a().get(), 45, "We should get 3 as value for a");
+    ///  assert_eq!(a().get(), 45, "We should get 45 as value for a");
     ///
     /// ```
     ///
@@ -103,20 +114,54 @@ where
     }
 
     /// Use to remove an atom from the global state
+    /// ```
+    /// use atomic_hooks::Atom;
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().remove();
+    ///
+    ///
+    /// assert_eq!(a().state_exists(), false, "The a state should not exist");
+    /// ```
     pub fn remove(self) -> Option<T> {
         remove_reactive_state_with_id(self.id)
     }
     /// ## Question :
     /// Why do we have remove and delete ?
     ///  ## Todo doc
+    /// ```
+    /// use atomic_hooks::Atom;
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().delete();
+    ///
+    ///
+    /// assert_eq!(a().state_exists(), false, "The a state should not exist");
+    /// ```
     /// - add example maybe
     /// - When to use it
     pub fn delete(self) {
         self.remove();
     }
-    ///  ## Todo doc
-    /// - add example maybe
-    /// - When to use it
+    /// Reset to the initial value
+    /// ```
+    /// use atomic_hooks::Atom;
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().set(10);
+    /// a().reset_to_default();
+    ///
+    /// assert_eq!(a().get(), 0, "The a state be reset to initial value");
+    /// ```
     pub fn reset_to_default(&self) {
         (clone_reactive_state_with_id::<RxFunc>(self.id)
             .unwrap()
@@ -125,9 +170,19 @@ where
     }
 
     /// Check if the state does exists in the store
-    ///  ## Todo doc
-    /// - add example maybe
-    /// - When to use it
+    /// Reset to the initial value
+    /// ```
+    /// use atomic_hooks::Atom;
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().set(10);
+    /// a().delete();
+    ///
+    /// assert_eq!(a().state_exists(), false, "The a state should not exist");
+    /// ```
     pub fn state_exists(self) -> bool {
         reactive_state_exists_for_id::<T>(self.id)
     }
