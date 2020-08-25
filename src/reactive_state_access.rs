@@ -47,7 +47,7 @@ where
     ///  ## Todo doc
     /// ```
     ///
-    /// use atomic_hooks::Atom;
+    /// use atomic_hooks::{Atom, CloneReactiveState};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     /// 0
