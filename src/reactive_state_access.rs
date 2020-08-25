@@ -1,13 +1,14 @@
-use crate::observable::Observable;
-use crate::reactive_state_functions::*;
-use crate::store::RxFunc;
-use crate::store::StorageKey;
+use crate::{
+    observable::Observable,
+    reactive_state_functions::*,
+    store::{RxFunc, StorageKey},
+};
 use std::marker::PhantomData;
 // use seed::prelude::*;
 // marker types
 
 /// An atom is an observable and changeable piece of state.
-/// You can use it to update a components and rerender specific part of the DOM
+/// You can use it to update a component and render specific part of the DOM
 pub struct Atom<T> {
     pub id: StorageKey,
     pub _phantom_data_stored_type: PhantomData<T>,
@@ -43,30 +44,43 @@ where
         }
     }
 
-    /// Stores a value of type T in a backing Store **without** reaction for observers
-    ///  ## Todo doc
-    /// ```
+    /// Stores a value of type T in a backing Store **without** reaction for
+    /// observers
     ///
-    /// use atomic_hooks::{Atom, CloneReactiveState};
+    /// ```
+    /// use atomic_hooks::{Atom, CloneReactiveState, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
-    /// 0
+    ///     0
     /// }
-    ///
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    /// #[reaction]
+    /// fn reaction_a_b_subtraction() {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
     /// a().inert_set(1);
-    ///
+    /// let diff = reaction_a_b_subtraction();
     /// assert_eq!(a().get(), 1);
+    /// assert_eq!(
+    ///     diff.get(),
+    ///     0,
+    ///     "We should still get 0 since we use inert setting"
+    /// );
     /// ```
-    /// - add example maybe
-    /// - When to use it
+    ///   ## Todo doc
+    /// - Add a description that explains relevant use case for this method
     pub fn inert_set(self, value: T)
     where
         T: 'static,
     {
         set_inert_atom_state_with_id(value, self.id);
     }
-    /// Stores a value of type T in a backing Store **with** a reaction for observers
-    ///  ```
+    /// Stores a value of type T in a backing Store **with** a reaction for
+    /// observers  ```
     /// use atomic_hooks::{Atom, CloneReactiveState};
     /// #[atom]
     /// fn a() -> Atom<i32> {
@@ -93,17 +107,16 @@ where
     /// use atomic_hooks::{Atom, CloneReactiveState};
     /// #[atom]
     /// fn a() -> Atom<i32> {
-    /// 0
+    ///     0
     /// }
-    ///  a().update(|state| *state = 45);
-    ///  assert_eq!(a().get(), 45, "We should get 45 as value for a");
-    ///
+    /// a().update(|state| *state = 45);
+    /// assert_eq!(a().get(), 45, "We should get 45 as value for a");
     /// ```
     ///
-    /// This is use for example when we want to update a component rendering depending of a state.
-    /// We update the atom so the component will rerender with the new state.
-    /// If many components subscribed to the atom, then all of them will get the update.
-    ///
+    /// This is use for example when we want to update a component rendering
+    /// depending of a state. We update the atom so the component will
+    /// rerender with the new state. If many components subscribed to the
+    /// atom, then all of them will get the update.
     pub fn update<F: FnOnce(&mut T) -> ()>(&self, func: F)
     where
         T: 'static,
@@ -119,11 +132,10 @@ where
     /// use atomic_hooks::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
-    /// 0
+    ///     0
     /// }
     ///
     /// a().remove();
-    ///
     ///
     /// assert_eq!(a().state_exists(), false, "The a state should not exist");
     /// ```
@@ -132,20 +144,19 @@ where
     }
     /// ## Question :
     /// Why do we have remove and delete ?
-    ///  ## Todo doc
+    ///  
     /// ```
     /// use atomic_hooks::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
-    /// 0
+    ///     0
     /// }
     ///
     /// a().delete();
     ///
-    ///
     /// assert_eq!(a().state_exists(), false, "The a state should not exist");
     /// ```
-    /// - add example maybe
+    /// ## Todo doc
     /// - When to use it
     pub fn delete(self) {
         self.remove();
@@ -155,7 +166,7 @@ where
     /// use atomic_hooks::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
-    /// 0
+    ///     0
     /// }
     ///
     /// a().set(10);
@@ -170,13 +181,12 @@ where
         execute_reaction_nodes(&self.id);
     }
 
-    /// Check if the state does exists in the store
-    /// Reset to the initial value
+    /// Check if the state does exist in the store
     /// ```
     /// use atomic_hooks::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
-    /// 0
+    ///     0
     /// }
     ///
     /// a().set(10);
@@ -212,11 +222,12 @@ where
 }
 
 ///
-/// An AtomUndo is similar to a regular atom except that its is reversible and is stored in a global state.
-/// ```
+/// An AtomUndo is similar to a regular atom except that its is reversible and
+/// is stored in a global state. ```
 /// use atomic_hooks_macros::*;
 /// use store::RxFunc;
-/// use atomic_hooks::{global_undo_queue, AtomUndo, GlobalUndo, CloneReactiveState};
+/// use atomic_hooks::{global_undo_queue, AtomUndo, GlobalUndo,
+/// CloneReactiveState};
 ///
 /// #[atom(undo)]
 /// fn a() -> AtomUndo<i32> {
@@ -224,7 +235,7 @@ where
 /// }
 ///
 /// #[atom(undo)]
-///fn b() -> AtomUndo<i32> {
+/// fn b() -> AtomUndo<i32> {
 ///    0
 /// }
 ///
@@ -253,7 +264,6 @@ where
 ///     assert_eq!(a().get(), 0, "We should get 0 as value for a");
 /// }
 ///  ```
-///
 pub struct AtomUndo<T>
 where
     T: Clone,
@@ -297,22 +307,36 @@ where
         }
     }
 
-    /// Stores a value of type T in a backing Store **without** reaction for observers
-    ///  ## Todo doc
+    /// Stores a value of type T in a backing Store **without** reaction for
+    /// observers
     /// ```
-    ///
     /// use atomic_hooks::{AtomUndo, CloneReactiveState};
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
-    /// 0
+    ///     0
+    /// }
+    /// #[atom(undo)]
+    /// fn b() -> AtomUndo<i32> {
+    ///     0
     /// }
     ///
+    /// #[reaction]
+    /// fn reaction_a_b_subtraction() {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
     /// a().inert_set(1);
-    ///
+    /// let diff = reaction_a_b_subtraction();
     /// assert_eq!(a().get(), 1);
+    /// assert_eq!(
+    ///     diff.get(),
+    ///     0,
+    ///     "We should still get 0 since we use inert setting"
+    /// );
     /// ```
-    /// - add example maybe
-    /// - When to use it
+    ///  ## Todo doc
+    /// - need to add description when the use of this method is relevant
     pub fn inert_set(self, value: T)
     where
         T: 'static,
@@ -320,11 +344,10 @@ where
         set_inert_atom_state_with_id_with_undo(value, self.id);
     }
     /// ```
-    ///
     /// use atomic_hooks::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
-    /// 0
+    ///     0
     /// }
     ///
     /// a().set(1);
@@ -343,11 +366,10 @@ where
     /// use atomic_hooks::{AtomUndo, CloneReactiveState};
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
-    /// 0
+    ///     0
     /// }
-    ///  a().update(|state| *state = 45);
-    ///  assert_eq!(a().get(), 45, "We should get 45 as value for a");
-    ///
+    /// a().update(|state| *state = 45);
+    /// assert_eq!(a().get(), 45, "We should get 45 as value for a");
     /// ```
     pub fn update<F: FnOnce(&mut T) -> ()>(&self, func: F)
     where
@@ -362,11 +384,10 @@ where
     /// use atomic_hooks::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
-    /// 0
+    ///     0
     /// }
     ///
     /// a().remove();
-    ///
     ///
     /// assert_eq!(a().state_exists(), false, "The a state should not exist");
     /// ```
@@ -375,21 +396,18 @@ where
     }
     /// ## Question :
     /// Why do we have remove and delete ?
-    ///  ## Todo doc
+    ///
     /// ```
     /// use atomic_hooks::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
-    /// 0
+    ///     0
     /// }
     ///
     /// a().delete();
     ///
-    ///
     /// assert_eq!(a().state_exists(), false, "The a state should not exist");
     /// ```
-    /// - add example maybe
-    /// - When to use it
     pub fn delete(self) {
         self.remove();
     }
@@ -398,7 +416,7 @@ where
     /// use atomic_hooks::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
-    /// 0
+    ///     0
     /// }
     ///
     /// a().set(10);
@@ -416,7 +434,7 @@ where
     /// use atomic_hooks::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
-    /// 0
+    ///     0
     /// }
     ///
     /// a().set(10);
@@ -681,10 +699,7 @@ where
     }
 }
 
-use std::ops::Add;
-use std::ops::Div;
-use std::ops::Mul;
-use std::ops::Sub;
+use std::ops::{Add, Div, Mul, Sub};
 
 impl<T> Add for Atom<T>
 where
