@@ -222,8 +222,9 @@ where
 }
 
 ///
-/// An AtomUndo is similar to a regular atom except that its is reversible and
-/// is stored in a global state. ```
+/// An AtomUndo is similar to a regular atom except that it is reversible and
+/// is stored in a global state.
+/// ```
 /// use atomic_hooks_macros::*;
 /// use store::RxFunc;
 /// use atomic_hooks::{global_undo_queue, AtomUndo, GlobalUndo,
@@ -238,7 +239,6 @@ where
 /// fn b() -> AtomUndo<i32> {
 ///    0
 /// }
-///
 ///
 /// fn test_undo() {
 ///   a().set(3);
@@ -309,6 +309,7 @@ where
 
     /// Stores a value of type T in a backing Store **without** reaction for
     /// observers
+    ///
     /// ```
     /// use atomic_hooks::{AtomUndo, CloneReactiveState};
     /// #[atom(undo)]
@@ -326,6 +327,7 @@ where
     ///     let b = b().observe();
     ///     (a - b)
     /// }
+    ///
     /// a().inert_set(1);
     /// let diff = reaction_a_b_subtraction();
     /// assert_eq!(a().get(), 1);
