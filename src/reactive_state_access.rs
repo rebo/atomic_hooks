@@ -560,18 +560,21 @@ mod test {
         global_undo_queue().travel_backwards();
         assert_eq!(a().get(), 5, "We should get 5 as value for a");
         eprintln!("{:?}", a().get());
+        eprintln!("{:?}", b().get());
         eprintln!("{:?}", global_undo_queue());
 
         global_undo_queue().travel_backwards(); // Why do we need 2 times         global_undo_queue().travel_backwards(); ?
         eprintln!("{:?}", a().get());
+        eprintln!("{:?}", b().get());
         eprintln!("{:?}", global_undo_queue());
         global_undo_queue().travel_backwards();
-
+        global_undo_queue().travel_backwards();
         assert_eq!(a().get(), 3, "We should get 3 as value for a");
         eprintln!("{:?}", a().get());
+        eprintln!("{:?}", b().get());
         eprintln!("{:?}", global_undo_queue());
         global_undo_queue().travel_backwards();
-
+        global_undo_queue().travel_backwards();
         assert_eq!(a().get(), 0, "We should get 0 as value for a");
     }
 }
