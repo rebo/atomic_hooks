@@ -48,6 +48,7 @@ where
     /// ```
     ///
     /// use atomic_hooks::Atom;
+    /// #[atom]
     /// fn a() -> Atom<i32> {
     /// 0
     /// }
