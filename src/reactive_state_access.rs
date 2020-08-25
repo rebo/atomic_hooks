@@ -80,7 +80,9 @@ where
         set_inert_atom_state_with_id(value, self.id);
     }
     /// Stores a value of type T in a backing Store **with** a reaction for
-    /// observers  ```
+    /// observers  
+    ///
+    /// ```
     /// use atomic_hooks::{Atom, CloneReactiveState};
     /// #[atom]
     /// fn a() -> Atom<i32> {
@@ -320,7 +322,7 @@ where
     /// observers
     ///
     /// ```
-    /// use atomic_hooks::{AtomUndo, CloneReactiveState};
+    /// use atomic_hooks::{AtomUndo, CloneReactiveState, Observable};
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -355,7 +357,7 @@ where
         set_inert_atom_state_with_id_with_undo(value, self.id);
     }
     /// ```
-    /// use atomic_hooks::AtomUndo;
+    /// use atomic_hooks::{AtomUndo, CloneReactiveState};
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -825,7 +827,7 @@ mod test {
     }
 
     #[test]
-    fn test_update_on() {}
+    fn test_on_update() {}
 
     #[test]
     fn test_undo() {
