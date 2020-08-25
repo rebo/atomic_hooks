@@ -297,21 +297,58 @@ where
         }
     }
 
-    // stores a value of type T in a backing Store
+    /// Stores a value of type T in a backing Store **without** reaction for observers
+    ///  ## Todo doc
+    /// ```
+    ///
+    /// use atomic_hooks::{AtomUndo, CloneReactiveState};
+    /// #[atom(undo)]
+    /// fn a() -> AtomUndo<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().inert_set(1);
+    ///
+    /// assert_eq!(a().get(), 1);
+    /// ```
+    /// - add example maybe
+    /// - When to use it
     pub fn inert_set(self, value: T)
     where
         T: 'static,
     {
         set_inert_atom_state_with_id_with_undo(value, self.id);
     }
-    // stores a value of type T in a backing Store
+    /// ```
+    ///
+    /// use atomic_hooks::AtomUndo;
+    /// #[atom(undo)]
+    /// fn a() -> AtomUndo<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().set(1);
+    ///
+    /// assert_eq!(a().get(), 1);
+    /// ```
+    /// - add example maybe
+    /// - When to use it
     pub fn set(self, value: T)
     where
         T: 'static,
     {
         set_atom_state_with_id_with_undo(value, self.id);
     }
-
+    /// ```
+    /// use atomic_hooks::{AtomUndo, CloneReactiveState};
+    /// #[atom(undo)]
+    /// fn a() -> AtomUndo<i32> {
+    /// 0
+    /// }
+    ///  a().update(|state| *state = 45);
+    ///  assert_eq!(a().get(), 45, "We should get 45 as value for a");
+    ///
+    /// ```
     pub fn update<F: FnOnce(&mut T) -> ()>(&self, func: F)
     where
         T: 'static,
@@ -321,22 +358,72 @@ where
     pub fn id(&self) -> StorageKey {
         self.id
     }
-
+    /// ```
+    /// use atomic_hooks::AtomUndo;
+    /// #[atom(undo)]
+    /// fn a() -> AtomUndo<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().remove();
+    ///
+    ///
+    /// assert_eq!(a().state_exists(), false, "The a state should not exist");
+    /// ```
     pub fn remove(self) -> Option<T> {
         remove_reactive_state_with_id_with_undo(self.id)
     }
-
+    /// ## Question :
+    /// Why do we have remove and delete ?
+    ///  ## Todo doc
+    /// ```
+    /// use atomic_hooks::AtomUndo;
+    /// #[atom(undo)]
+    /// fn a() -> AtomUndo<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().delete();
+    ///
+    ///
+    /// assert_eq!(a().state_exists(), false, "The a state should not exist");
+    /// ```
+    /// - add example maybe
+    /// - When to use it
     pub fn delete(self) {
         self.remove();
     }
-
+    /// Reset to the initial value
+    /// ```
+    /// use atomic_hooks::AtomUndo;
+    /// #[atom(undo)]
+    /// fn a() -> AtomUndo<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().set(10);
+    /// a().reset_to_default();
+    ///
+    /// assert_eq!(a().get(), 0, "The a state be reset to initial value");
+    /// ```
     pub fn reset_to_default(&self) {
         (clone_reactive_state_with_id::<RxFunc>(self.id)
             .unwrap()
             .func)();
         execute_reaction_nodes(&self.id);
     }
-
+    /// ```
+    /// use atomic_hooks::AtomUndo;
+    /// #[atom(undo)]
+    /// fn a() -> AtomUndo<i32> {
+    /// 0
+    /// }
+    ///
+    /// a().set(10);
+    /// a().delete();
+    ///
+    /// assert_eq!(a().state_exists(), false, "The a state should not exist");
+    /// ```
     pub fn state_exists(self) -> bool {
         reactive_state_exists_for_id::<T>(self.id)
     }
