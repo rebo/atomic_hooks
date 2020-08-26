@@ -521,6 +521,66 @@ where
     // }
 }
 
+/// A reaction is an observable state combined from one or multiple atom state.
+/// Literally you can write code that is function of atom state value to produce
+/// a new value which you can observe. The new value will get automatically
+/// updated as long as the update on the atom is not **inert**.  
+///
+/// ```
+/// use atomic_hooks::{Atom, CloneReactiveState, Observable, Reaction};
+///
+/// #[atom]
+/// fn a() -> Atom<i32> {
+///     0
+/// }
+///
+/// #[atom]
+/// fn b() -> Atom<i32> {
+///     0
+/// }
+///
+/// #[reaction]
+/// fn a_b_subtraction() -> Reaction<i32> {
+///     let a = a().observe();
+///     let b = b().observe();
+///     (a - b)
+/// }
+/// // we have the state
+/// // of a - b and we can get it when never we want.
+/// // the value should always be automatically updated
+/// fn test_reaction() {
+///     let a_b_subtraction = a_b_subtraction();
+///
+///     a().set(0);
+///     b().set(0);
+///     a().update(|state| *state = 40);
+///     assert_eq!(a().get(), 40, "We should get 40 as value for a");
+///     assert_eq!(
+///         a_b_subtraction.get(),
+///         40,
+///         "We should get 40 for subtraction because setting"
+///     );
+///
+///     b().set(10);
+///     assert_eq!(
+///         a_b_subtraction.get(),
+///         30,
+///         "We should get 40 for subtraction because setting"
+///     );
+///     b().inert_set(0);
+///     assert_eq!(
+///         a_b_subtraction.get(),
+///         30,
+///         "We should get 30 for subtraction because setting inert"
+///     );
+///     b().set(20);
+///     assert_eq!(
+///         a_b_subtraction.get(),
+///         20,
+///         "We should get 20 for subtraction because setting"
+///     );
+/// }
+/// ```
 pub struct Reaction<T> {
     pub id: StorageKey,
 
@@ -551,6 +611,7 @@ impl<T> Reaction<T>
 where
     T: 'static,
 {
+    /// Create a new reaction
     pub fn new(id: StorageKey) -> Reaction<T> {
         Reaction {
             id,
@@ -558,29 +619,194 @@ where
             _phantom_data_stored_type: PhantomData,
         }
     }
-
+    /// Remove the reaction from the global state
+    /// ```
+    /// use atomic_hooks::{Atom, Observable, Reaction};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[atom]
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[reaction]
+    /// fn a_b_subtraction() -> Reaction<i32> {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
+    /// fn test_delete() {
+    ///     let a_b_subtraction = a_b_subtraction();
+    ///     a_b_subtraction.remove();
+    ///
+    ///     assert_eq!(
+    ///         a_b_subtraction.state_exists(),
+    ///         false,
+    ///         "The state has been removed, so it should not exist"
+    ///     );
+    /// }
+    /// ```
     pub fn remove(self) -> Option<T> {
         remove_reactive_state_with_id(self.id)
     }
 
+    ///
+    /// ```
+    /// use atomic_hooks::{Atom, Observable, Reaction};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[atom]
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[reaction]
+    /// fn a_b_subtraction() -> Reaction<i32> {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
+    /// fn test_delete() {
+    ///     let a_b_subtraction = a_b_subtraction();
+    ///     a_b_subtraction.delete();
+    ///
+    ///     assert_eq!(
+    ///         a_b_subtraction.state_exists(),
+    ///         false,
+    ///         "The state has been removed, so it should not exist"
+    ///     );
+    /// }
+    /// ```
     pub fn delete(self) {
         self.remove();
     }
 
+    /// This method force the update of the new combined value
+    /// ## Question
+    /// - I thought the new value was updated automatically, isn't ?
+    /// - When & why to use this method ?
     pub fn force_trigger(&self) {
         (clone_reactive_state_with_id::<RxFunc>(self.id)
             .unwrap()
             .func)();
     }
-
+    /// Check if the state_exist
+    /// ```
+    /// use atomic_hooks::{Atom, Observable, Reaction};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[atom]
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[reaction]
+    /// fn a_b_subtraction() -> Reaction<i32> {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
+    /// fn test_state_exist() {
+    ///     let a_b_subtraction = a_b_subtraction();
+    ///
+    ///     assert_eq!(
+    ///         a_b_subtraction.state_exists(),
+    ///         true,
+    ///         "The state should exist"
+    ///     );
+    ///     a_b_subtraction.delete();
+    ///
+    ///     assert_eq!(
+    ///         a_b_subtraction.state_exists(),
+    ///         false,
+    ///         "The state has been removed, so it should not exist"
+    ///     );
+    /// }
+    /// ```
     pub fn state_exists(self) -> bool {
         reactive_state_exists_for_id::<T>(self.id)
     }
-
+    /// Let you get the value as a reference from a closure.
+    /// ```
+    /// use atomic_hooks::{Atom, Observable, Reaction};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[atom]
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[reaction]
+    /// fn a_b_subtraction() -> Reaction<i32> {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
+    ///
+    /// fn test_get_with() {
+    ///     let a_b_subtraction = a_b_subtraction();
+    ///     a_b_subtraction.get_with(|v| assert_eq!(v, &0, "We should get 0"));
+    ///     a().set(10);
+    ///     a_b_subtraction.get_with(|v| assert_eq!(v, &10, "We should get 10"));
+    /// }
+    /// ```
     pub fn get_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
         read_reactive_state_with_id(self.id, func)
     }
-
+    /// Triggers the passed function when the atom is updated
+    /// This method needs to be use inside a function body that has the
+    /// attributes **[reaction]**.
+    /// ```
+    /// use atomic_hooks::{Atom, CloneReactiveState, Observable, Reaction};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[atom]
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    /// #[atom]
+    /// fn c() -> Atom<i32> {
+    ///     0
+    /// }
+    /// #[reaction]
+    /// fn a_b_subtraction() -> Reaction<i32> {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
+    /// #[reaction]
+    /// fn count_subtraction_when_update() -> Reaction<i32> {
+    ///     let c = c();
+    ///     let update = a_b_subtraction().on_update(|| {
+    ///         println!("UPDATE !!!");
+    ///         c.update(|mut v| *v = *v + 1)
+    ///     });
+    ///     c.get()
+    /// }
+    /// fn test_on_update() {
+    ///     let count = count_subtraction_when_update();
+    ///     a().update(|v| *v = 32);
+    ///     a().set(2);
+    ///     a().set(25);
+    ///     a().set(1);
+    ///     assert_eq!(count.get(), 5);
+    /// }
+    /// ```
     #[topo::nested]
     pub fn on_update<F: FnOnce() -> R, R>(&self, func: F) -> Option<R> {
         let first_call_accessor = crate::hooks_state_functions::use_state(|| true);
@@ -599,7 +825,52 @@ where
             None
         }
     }
-
+    /// This method give us the possibility to know if a reaction has been
+    /// updated.
+    /// ```
+    /// use atomic_hooks::{Atom, CloneReactiveState, Observable, Reaction};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[atom]
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    /// #[reaction]
+    /// fn a_b_subtraction() -> Reaction<i32> {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
+    ///
+    /// #[reaction]
+    /// fn count_subtraction_when_update() -> Reaction<i32> {
+    ///     let c = c();
+    ///     let update = a_b_subtraction().on_update(|| {
+    ///         println!("UPDATE !!!");
+    ///         c.update(|mut v| *v = *v + 1)
+    ///     });
+    ///     c.get()
+    /// }
+    /// fn test_has_updated() {
+    ///     let count = count_subtraction_when_update();
+    ///     a().update(|v| *v = 32);
+    ///     assert_eq!(count.has_updated(), true);
+    ///     a().set(32);
+    ///     assert_eq!(
+    ///         count.has_updated(),
+    ///         false,
+    ///         "No update should have been done since we updated a to 32 which is the same value as \
+    ///              before"
+    ///     );
+    ///     a().set(25);
+    ///     assert_eq!(count.has_updated(), true);
+    ///     a().set(1);
+    ///     assert_eq!(count.has_updated(), true);
+    /// }
+    /// ```
     #[topo::nested]
     pub fn has_updated(&self) -> bool {
         let first_call_accessor = crate::hooks_state_functions::use_state(|| true);
@@ -826,6 +1097,7 @@ mod test {
         let b = b().observe();
         (a - b)
     }
+
     #[reaction]
     fn a_b_reversible_subtraction() -> Reaction<i32> {
         let a = a_reversible().observe();
@@ -848,6 +1120,16 @@ mod test {
         c.get()
     }
 
+    #[reaction]
+    fn count_subtraction_when_update() -> Reaction<i32> {
+        let c = c();
+        let update = a_b_subtraction().on_update(|| {
+            println!("UPDATE !!!");
+            c.update(|mut v| *v = *v + 1)
+        });
+        c.get()
+    }
+
     #[atom(undo)]
     fn a_reversible() -> AtomUndo<i32> {
         0
@@ -860,12 +1142,13 @@ mod test {
 
     #[test]
     fn test_get_with() {
+        let a_b_reversible_subtraction = a_b_reversible_subtraction();
         a_reversible().set(3);
         b_reversible().set(5);
 
         a_reversible().get_with(|v| assert_eq!(v, &3, "We should get 3"));
         b_reversible().get_with(|v| assert_eq!(v, &5, "We should get 5"));
-
+        a_b_reversible_subtraction.get_with(|v| assert_eq!(v, &-2, "We should get -2"));
         a().set(3);
         b().set(5);
 
@@ -884,6 +1167,24 @@ mod test {
         println!("{:?}", print.get());
 
         assert_eq!(print.get(), 5)
+    }
+
+    #[test]
+    fn test_on_update_reaction() {
+        let count = count_subtraction_when_update();
+        println!("{:?}", a_b_subtraction().get());
+        a().update(|v| *v = 32);
+        println!("{:?}", a_b_subtraction().get());
+        a().set(2);
+        println!("{:?}", a_b_subtraction().get());
+        a().set(25);
+        println!("{:?}", a_b_subtraction().get());
+        a().set(1);
+        println!("{:?}", a_b_subtraction().get());
+
+        println!("{:?}", count.get());
+
+        assert_eq!(count.get(), 5);
     }
 
     #[test]
@@ -932,6 +1233,7 @@ mod test {
         a().update(|state| *state = 40);
         assert_eq!(a().get(), 40, "We should get 40 as value for a");
     }
+
     #[test]
     fn test_inert_set() {
         a_reversible().inert_set(155);
@@ -949,6 +1251,7 @@ mod test {
         );
         assert_eq!(a().get(), 165, "We should get 165");
     }
+
     #[test]
     fn test_delete() {
         a_reversible().delete();
@@ -967,6 +1270,7 @@ mod test {
 
         assert_eq!(a().state_exists(), false, "The a state should not exist");
     }
+
     #[test]
     fn test_reaction() {
         let a_b_subtraction = a_b_subtraction();
@@ -999,6 +1303,7 @@ mod test {
             "We should get 20 for subtraction because setting"
         );
     }
+
     #[test]
     fn test_reversible_reaction() {
         let a_b_reversible_subtraction = a_b_reversible_subtraction();
