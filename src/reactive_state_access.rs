@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 // marker types
 
 /// An atom is an observable and changeable piece of state.
-/// You can use it to update a component and render specific part of the DOM
+/// You can use it to update a component and render specific part of the DOM.
 pub struct Atom<T> {
     pub id: StorageKey,
     pub _phantom_data_stored_type: PhantomData<T>,
@@ -36,7 +36,7 @@ impl<T> Atom<T>
 where
     T: 'static,
 {
-    /// Instantiate a new atom
+    /// Instantiate a new atom.
     pub fn new(id: StorageKey) -> Atom<T> {
         Atom {
             id,
@@ -45,7 +45,7 @@ where
     }
 
     /// Stores a value of type T in a backing Store **without** reaction for
-    /// observers
+    /// observers.
     ///
     /// ```
     /// use atomic_hooks::{Atom, CloneReactiveState, Observable};
@@ -80,7 +80,7 @@ where
         set_inert_atom_state_with_id(value, self.id);
     }
     /// Stores a value of type T in a backing Store **with** a reaction for
-    /// observers  
+    /// observers.  
     ///
     /// ```
     /// use atomic_hooks::{Atom, CloneReactiveState};
@@ -183,7 +183,7 @@ where
         execute_reaction_nodes(&self.id);
     }
 
-    /// Check if the state does exist in the store
+    /// Check if the state does exist in the store.
     /// ```
     /// use atomic_hooks::Atom;
     /// #[atom]
@@ -200,7 +200,7 @@ where
         reactive_state_exists_for_id::<T>(self.id)
     }
 
-    /// Allow you to get the state through a reference with a closure
+    /// Allow you to get the state through a reference with a closure.
     /// ```
     /// use atomic_hooks::Atom;
     /// #[atom]
@@ -219,7 +219,7 @@ where
 
     /// Triggers the passed function when the atom is updated
     /// This method needs to be use inside a function body that has the
-    /// attributes **[reaction]**
+    /// attributes **[reaction]**.
     ///
     /// ```
     /// #[reaction]
@@ -347,7 +347,7 @@ where
     }
 
     /// Stores a value of type T in a backing Store **without** reaction for
-    /// observers
+    /// observers.
     ///
     /// ```
     /// use atomic_hooks::{AtomUndo, CloneReactiveState, Observable};
@@ -377,7 +377,7 @@ where
     /// );
     /// ```
     ///  ## Todo doc
-    /// - need to add description when the use of this method is relevant
+    /// - need to add description when the use of this method is relevant.
     pub fn inert_set(self, value: T)
     where
         T: 'static,
@@ -403,6 +403,10 @@ where
     {
         set_atom_state_with_id_with_undo(value, self.id);
     }
+    /// This is use for example when we want to update a component rendering
+    /// depending of a state. We update the atom so the component will
+    /// rerender with the new state. If many components subscribed to the
+    /// atom, then all of them will get the update.
     /// ```
     /// use atomic_hooks::{AtomUndo, CloneReactiveState};
     /// #[atom(undo)]
@@ -452,7 +456,7 @@ where
     pub fn delete(self) {
         self.remove();
     }
-    /// Reset to the initial value
+    /// Reset to the initial value.
     /// ```
     /// use atomic_hooks::AtomUndo;
     /// #[atom(undo)]
@@ -487,7 +491,7 @@ where
         reactive_state_exists_for_id::<T>(self.id)
     }
 
-    /// Allow you to get the state through a reference with a closure
+    /// Allow you to get the state through a reference with a closure.
     /// ```
     /// use atomic_hooks::AtomUndo;
     /// #[atom(undo)]
@@ -499,7 +503,7 @@ where
     /// a().get_with(|v| assert_eq!(v, &3, "We should get 3"));
     /// ```
     ///  ## Todo doc
-    /// - When to use it
+    /// - When to use it ?
     pub fn get_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
         read_reactive_state_with_id(self.id, func)
     }
