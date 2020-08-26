@@ -912,6 +912,32 @@ impl<T> ObserveChangeReactiveState<T> for Atom<T>
 where
     T: Clone + 'static + PartialEq,
 {
+    /// Let you get the last changes on an Atom state
+    /// #todo
+    /// - Improve the name of the method, because user might be expecting having
+    ///   an observable while in fact the value from this method does not update
+    ///   change over time but give only the last change.
+    /// - the unit is failling for this method because option gives always None
+    ///   as value.
+    /// ```
+    /// use atomic_hooks::{Atom, ObserveChangeReactiveState};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[test]
+    /// fn test_observe_on_atom() {
+    ///     let a = a();
+    ///     let change = a.observe_change();
+    ///     assert_eq!(change.0.is_none(), true);
+    ///     assert_eq!(change.1, 0);
+    ///     a.set(1);
+    ///     let change2 = a.observe_change();
+    ///     assert_eq!(change2.0.unwrap(), 0);
+    ///     assert_eq!(change2.1, 1);
+    /// }
+    /// ```
     #[topo::nested]
     fn observe_change(&self) -> (Option<T>, T) {
         let previous_value_access = crate::hooks_state_functions::use_state(|| self.get());
@@ -926,14 +952,84 @@ where
             })
         })
     }
-
+    /// This method gives us the possibility to know if the state of an atom has
+    /// been changed.
+    ///
+    /// #todo
+    /// - the unit test is failling for this method
+    ///
+    /// ```
+    /// use atomic_hooks::{Atom, ObserveChangeReactiveState};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[test]
+    /// fn test_has_changed_on_atom() {
+    ///     let a = a();
+    ///     a.set(1);
+    ///
+    ///     assert_eq!(a.has_changed(), true);
+    ///     a.set(1);
+    ///     assert_eq!(a.has_changed(), false);
+    /// }
+    /// ```
     #[topo::nested]
     fn has_changed(&self) -> bool {
         let previous_value_access = crate::hooks_state_functions::use_state(|| self.get());
         previous_value_access
             .get_with(|previous_value| self.observe_with(|new_value| new_value != previous_value))
     }
-
+    /// This method gives the opportunity to trigger a function and use the
+    /// values from the changes.
+    ///
+    /// #todo
+    /// - the unit test is failling for this method after a.set(2)
+    ///
+    /// ```
+    /// use atomic_hooks::{
+    ///     Atom, CloneReactiveState, Observable, ObserveChangeReactiveState, Reaction,
+    /// };
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[test]
+    /// fn test_on_changes_on_atom() {
+    ///     let a = a();
+    ///     let mut previous = 99;
+    ///     let mut current = 99;
+    ///     a.on_change(|p, c| {
+    ///         previous = *p;
+    ///         current = *c;
+    ///     });
+    ///     assert_eq!(previous, 0); //todo : should we expect None when init ?
+    ///     assert_eq!(current, 0);
+    ///     a.set(1);
+    ///     a.on_change(|p, c| {
+    ///         previous = *p;
+    ///         current = *c;
+    ///     });
+    ///     assert_eq!(previous, 0);
+    ///     assert_eq!(current, 1);
+    ///     a.set(1);
+    ///     a.on_change(|p, c| {
+    ///         previous = *p;
+    ///         current = *c;
+    ///     });
+    ///     assert_eq!(previous, 0);
+    ///     assert_eq!(current, 1);
+    ///     a.set(2);
+    ///     a.on_change(|p, c| {
+    ///         previous = *p;
+    ///         current = *c;
+    ///     });
+    ///     assert_eq!(previous, 1, "we should get 1");
+    ///     assert_eq!(current, 2, "we should get 2");
+    /// }
+    /// ```
     fn on_change<F: FnOnce(&T, &T) -> R, R>(&self, func: F) -> R {
         let previous_value_access = crate::hooks_state_functions::use_state(|| self.get());
         previous_value_access.get_with(|previous_value| {
@@ -1138,6 +1234,64 @@ mod test {
     #[atom(undo)]
     fn b_reversible() -> AtomUndo<i32> {
         0
+    }
+
+    #[test]
+    fn test_observe_on_atom() {
+        let a = a();
+        let change = a.observe_change();
+        println!("{:?}", change.0);
+        println!("{:?}", change.1);
+        assert_eq!(change.0.is_none(), true);
+        assert_eq!(change.1, 0);
+        a.set(1);
+        let change2 = a.observe_change();
+        println!("{:?}", change2.0);
+        println!("{:?}", change2.1);
+        assert_eq!(change2.0.unwrap(), 0);
+        assert_eq!(change2.1, 1);
+    }
+    #[test]
+    fn test_has_changed_on_atom() {
+        let a = a();
+        a.set(1);
+
+        assert_eq!(a.has_changed(), true);
+        a.set(1);
+        assert_eq!(a.has_changed(), false);
+    }
+    #[test]
+    fn test_on_changes_on_atom() {
+        let a = a();
+        let mut previous = 99;
+        let mut current = 99;
+        a.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 0); //todo : should we expect None when init ?
+        assert_eq!(current, 0);
+        a.set(1);
+        a.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 0);
+        assert_eq!(current, 1);
+        a.set(1);
+        a.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 0);
+        assert_eq!(current, 1);
+        a.set(2);
+        a.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 1, "we should get 1");
+        assert_eq!(current, 2, "we should get 2");
     }
 
     #[test]
