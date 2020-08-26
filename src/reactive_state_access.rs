@@ -913,7 +913,8 @@ where
     T: Clone + 'static + PartialEq,
 {
     /// Let you get the last changes on an Atom state
-    /// #todo
+    ///
+    /// ## Todo
     /// - Improve the name of the method, because user might be expecting having
     ///   an observable while in fact the value from this method does not update
     ///   change over time but give only the last change.
@@ -955,7 +956,7 @@ where
     /// This method gives us the possibility to know if the state of an atom has
     /// been changed.
     ///
-    /// #todo
+    /// ## Todo
     /// - the unit test is failling for this method
     ///
     /// ```
@@ -984,7 +985,7 @@ where
     /// This method gives the opportunity to trigger a function and use the
     /// values from the changes.
     ///
-    /// #todo
+    /// ## Todo
     /// - the unit test is failling for this method after a.set(2)
     ///
     /// ```
@@ -1042,6 +1043,42 @@ impl<T> ObserveChangeReactiveState<T> for Reaction<T>
 where
     T: Clone + 'static + PartialEq,
 {
+    /// Let you get the last changes on a reaction.
+    ///
+    /// ## Todo
+    ///
+    /// - the unit test is failing so I guess we need to investigate the bug
+    /// ```
+    /// use atomic_hooks::{Atom, Observable, ObserveChangeReactiveState, Reaction};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[atom]
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[reaction]
+    /// fn a_b_subtraction() -> Reaction<i32> {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
+    /// #[test]
+    /// fn test_observe_changes_on_reaction() {
+    ///     let a_b_subtraction = a_b_subtraction();
+    ///     let changes = a_b_subtraction.observe_change();
+    ///     assert_eq!(changes.0.is_none(), true);
+    ///     assert_eq!(changes.1, 0);
+    ///
+    ///     a().set(2);
+    ///     let changes = a_b_subtraction.observe_change();
+    ///     assert_eq!(changes.0.unwrap(), 1);
+    ///     assert_eq!(changes.1, 2);
+    /// }
+    /// ```
     #[topo::nested]
     fn observe_change(&self) -> (Option<T>, T) {
         let previous_value_access = crate::hooks_state_functions::use_state(|| self.get());
@@ -1056,7 +1093,45 @@ where
             })
         })
     }
-
+    /// Let you know if changes has been made.
+    ///
+    /// ## Todo
+    /// - the unit test is failing so I guess we need to investigate the bug
+    /// ```
+    /// use atomic_hooks::{Atom, Observable, ObserveChangeReactiveState, Reaction};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[atom]
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[reaction]
+    /// fn a_b_subtraction() -> Reaction<i32> {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
+    /// #[test]
+    /// fn test_has_changes_on_reaction() {
+    ///     let a_b_subtraction = a_b_subtraction();
+    ///
+    ///     a().set(2);
+    ///     let changes_happened = a_b_subtraction.has_changed();
+    ///     assert_eq!(changes_happened, true);
+    ///
+    ///     a().set(3);
+    ///     let changes_happened = a_b_subtraction.has_changed();
+    ///     assert_eq!(changes_happened, true);
+    ///
+    ///     a().set(3);
+    ///     let changes_happened = a_b_subtraction.has_changed();
+    ///     assert_eq!(changes_happened, false);
+    /// }
+    /// ```
     #[topo::nested]
     fn has_changed(&self) -> bool {
         let previous_value_access = crate::hooks_state_functions::use_state(|| self.get());
@@ -1064,6 +1139,55 @@ where
             .get_with(|previous_value| self.observe_with(|new_value| new_value != previous_value))
     }
 
+    /// Let you apply a function on previous and current value from changes.
+    ///
+    /// ## Todo
+    ///
+    /// - the unit test is failing so I guess we need to investigate the bug
+    /// ```
+    /// use atomic_hooks::{Atom, Observable, ObserveChangeReactiveState, Reaction};
+    /// #[atom]
+    /// fn a() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[atom]
+    /// fn b() -> Atom<i32> {
+    ///     0
+    /// }
+    ///
+    /// #[reaction]
+    /// fn a_b_subtraction() -> Reaction<i32> {
+    ///     let a = a().observe();
+    ///     let b = b().observe();
+    ///     (a - b)
+    /// }
+    /// #[test]
+    /// fn test_on_changes_on_reaction() {
+    ///     let a_b_subtraction = a_b_subtraction();
+    ///     let mut previous = 99;
+    ///     let mut current = 99;
+    ///     a_b_subtraction.on_change(|p, c| {
+    ///         previous = *p;
+    ///         current = *c;
+    ///     });
+    ///     assert_eq!(previous, 0);
+    ///     assert_eq!(current, 0);
+    ///     a().set(1);
+    ///     a_b_subtraction.on_change(|p, c| {
+    ///         previous = *p;
+    ///         current = *c;
+    ///     });
+    ///     assert_eq!(previous, 0);
+    ///     assert_eq!(current, 1);
+    ///     a().set(2);
+    ///     a_b_subtraction.on_change(|p, c| {
+    ///         previous = *p;
+    ///         current = *c;
+    ///     });
+    ///     assert_eq!(previous, 1); /
+    ///     assert_eq!(current, 2);
+    /// ```
     fn on_change<F: FnOnce(&T, &T) -> R, R>(&self, func: F) -> R {
         let previous_value_access = crate::hooks_state_functions::use_state(|| self.get());
         previous_value_access.get_with(|previous_value| {
@@ -1234,6 +1358,60 @@ mod test {
     #[atom(undo)]
     fn b_reversible() -> AtomUndo<i32> {
         0
+    }
+    #[test]
+    fn test_on_changes_on_reaction() {
+        let a_b_subtraction = a_b_subtraction();
+        let mut previous = 99;
+        let mut current = 99;
+        a_b_subtraction.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 0); //todo : should we expect None when init ?
+        assert_eq!(current, 0);
+        a().set(1);
+        a_b_subtraction.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 0); //todo : should we expect None when init ?
+        assert_eq!(current, 1);
+        a().set(2);
+        a_b_subtraction.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 1); //todo : should we expect None when init ?
+        assert_eq!(current, 2);
+    }
+    #[test]
+    fn test_has_changes_on_reaction() {
+        let a_b_subtraction = a_b_subtraction();
+
+        a().set(2);
+        let changes_happened = a_b_subtraction.has_changed();
+        assert_eq!(changes_happened, true);
+
+        a().set(3);
+        let changes_happened = a_b_subtraction.has_changed();
+        assert_eq!(changes_happened, true);
+
+        a().set(3);
+        let changes_happened = a_b_subtraction.has_changed();
+        assert_eq!(changes_happened, false);
+    }
+    #[test]
+    fn test_observe_changes_on_reaction() {
+        let a_b_subtraction = a_b_subtraction();
+        let changes = a_b_subtraction.observe_change();
+        assert_eq!(changes.0.is_none(), true);
+        assert_eq!(changes.1, 0);
+
+        a().set(2);
+        let changes = a_b_subtraction.observe_change();
+        assert_eq!(changes.0.unwrap(), 1);
+        assert_eq!(changes.1, 2);
     }
 
     #[test]
