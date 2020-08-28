@@ -3,14 +3,14 @@ pub use atomic_hooks_macros::{atom, reaction};
 pub mod store;
 
 // hooks
-mod state_access;
 mod hooks_state_functions;
+mod state_access;
 
 // reactive state
 
+mod marker;
 mod reactive_state_access;
 pub mod reactive_state_functions;
-mod marker;
 
 // helpers
 mod helpers;

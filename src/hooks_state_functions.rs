@@ -1,19 +1,19 @@
-use crate::state_access::CloneState;
-use crate::state_access::StateAccess;
-use crate::reactive_state_functions::{STORE,execute_reaction_nodes};
-use crate::store::{StorageKey, SlottedKey, ReactiveContext,TopoKey};
-use crate::unmount::Unmount;
-use std::cell::RefCell;
-use std::collections::HashSet;
+use crate::{
+    reactive_state_functions::{execute_reaction_nodes, STORE},
+    state_access::{CloneState, StateAccess},
+    store::{ReactiveContext, SlottedKey, StorageKey, TopoKey},
+    unmount::Unmount,
+};
+use std::{cell::RefCell, collections::HashSet};
 
 // thread_local! {
 //     static STORE: RefCell<Store> = RefCell::new(Store::new());
 // }
 
 ///
-/// Constructs a T accessor. T is stored keyed to the current topological context.
-/// The accessor always references this context therefore can you can set/update/ or get this T
-/// from anywhere.
+/// Constructs a T accessor. T is stored keyed to the current topological
+/// context. The accessor always references this context therefore can you can
+/// set/update/ or get this T from anywhere.
 ///
 ///  The passed closure is only used for the first initialisation of state.
 ///  Subsequent evaluations of this function just returns the accessor.
@@ -43,15 +43,11 @@ pub fn use_state<T: 'static, F: FnOnce() -> T>(data_fn: F) -> StateAccess<T> {
 ///
 ///  Uses the current topological id to create a new state accessor
 ///
-///
 pub fn use_state_current<T: 'static, F: FnOnce() -> T>(data_fn: F) -> StateAccess<T> {
     let id = topo::CallId::current();
     let ctx = get_state_slotted_key_struct_if_in_context();
 
-    let id = TopoKey {
-        ctx,
-        id,
-    };
+    let id = TopoKey { ctx, id };
 
     if !state_exists_for_topo_id::<T>(id) {
         set_state_with_topo_id::<T>(data_fn(), id);
@@ -76,21 +72,27 @@ pub fn set_state_with_topo_id<T: 'static>(data: T, current_id: TopoKey) {
     });
 
     execute_reaction_nodes(&StorageKey::TopoKey(current_id));
-
 }
 
 pub fn state_exists_for_topo_id<T: 'static>(id: TopoKey) -> bool {
-    STORE.with(|store_refcell| store_refcell.borrow().state_exists_with_id::<T>(StorageKey::TopoKey(id)))
+    STORE.with(|store_refcell| {
+        store_refcell
+            .borrow()
+            .state_exists_with_id::<T>(StorageKey::TopoKey(id))
+    })
 }
 
-fn get_state_slotted_key_struct_if_in_context() -> Option<SlottedKey>{
-    illicit::get::<RefCell<ReactiveContext>>().ok().map(|ctx| 
-    if let StorageKey::SlottedKey(key) = ctx.borrow_mut().key {
-        Some(key)}
-    else {
-        None
-    }
-    ).flatten()
+fn get_state_slotted_key_struct_if_in_context() -> Option<SlottedKey> {
+    illicit::get::<RefCell<ReactiveContext>>()
+        .ok()
+        .map(|ctx| {
+            if let StorageKey::SlottedKey(key) = ctx.borrow_mut().key {
+                Some(key)
+            } else {
+                None
+            }
+        })
+        .flatten()
 }
 
 /// Clones the state of type T keyed to the given TopoId
@@ -119,7 +121,6 @@ pub fn remove_state_with_topo_id<T: 'static>(id: TopoKey) -> Option<T> {
 /// update_state_with_topo_id::<Vec<String>>( topo::CallId::current(), |v|
 ///     v.push("foo".to_string()
 /// )
-///
 pub fn update_state_with_topo_id<T: 'static, F: FnOnce(&mut T) -> ()>(id: TopoKey, func: F) {
     let mut item = remove_state_with_topo_id::<T>(id)
         .expect("You are trying to update a type state that doesnt exist in this context!");
@@ -127,7 +128,6 @@ pub fn update_state_with_topo_id<T: 'static, F: FnOnce(&mut T) -> ()>(id: TopoKe
     set_state_with_topo_id(item, id);
 
     execute_reaction_nodes(&StorageKey::TopoKey(id));
-
 }
 
 pub fn read_state_with_topo_id<T: 'static, F: FnOnce(&T) -> R, R>(id: TopoKey, func: F) -> R {
@@ -142,7 +142,6 @@ pub fn read_state_with_topo_id<T: 'static, F: FnOnce(&T) -> R, R>(id: TopoKey, f
 /// purges all unseen ids' state
 /// then resets the suneen ids list.
 
-
 // pub fn purge_and_reset_unseen_ids() {
 //     purge_unseen_ids();
 //     reset_unseen_id_list();
@@ -153,18 +152,23 @@ pub fn read_state_with_topo_id<T: 'static, F: FnOnce(&T) -> R, R>(id: TopoKey, f
 /// Copies all ids in the storage map to an unseen_id list.
 /// Each Id is then removed if accessed
 ///
-/// Paired with purge_unseen_ids to remove state for ids that have not been accessed
-
+/// Paired with purge_unseen_ids to remove state for ids that have not been
+/// accessed
 
 pub fn reset_unseen_id_list() {
     STORE.with(|store_refcell| {
         let mut store_mut = store_refcell.borrow_mut();
 
         store_mut.unseen_ids = HashSet::new();
-        let ids = store_mut.id_to_key_map.keys()
+        let ids = store_mut
+            .id_to_key_map
+            .keys()
             .filter_map(|k| match k {
-                StorageKey::SlottedKey(_)=> None, 
-                StorageKey::TopoKey(key)=>Some(key)}).cloned().collect::<Vec<_>>();
+                StorageKey::SlottedKey(_) => None,
+                StorageKey::TopoKey(key) => Some(key),
+            })
+            .cloned()
+            .collect::<Vec<_>>();
 
         for id in ids {
             store_mut.unseen_ids.insert(id);
