@@ -31,9 +31,7 @@
 /// retrieved
 pub use crate::marker::*;
 pub use crate::{
-    reactive_state_access::{
-        Atom, AtomUndo, CloneReactiveState, ObserveChangeReactiveState, Reaction,
-    },
+    reactive_state_access::{atom, atom_undo, reaction},
     reactive_state_functions::{
         atom, atom_undo, clone_reactive_state_with_id, reaction, reaction_start_suspended,
         reactive_state_exists_for_id, read_reactive_state_with_id, remove_reactive_state_with_id,
