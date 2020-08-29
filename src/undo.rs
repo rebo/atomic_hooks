@@ -1,6 +1,6 @@
 use crate::atom::Atom;
 use crate::*;
-use atomic_hooks_macros::*;
+
 use store::RxFunc;
 
 #[derive(Default, Clone)]

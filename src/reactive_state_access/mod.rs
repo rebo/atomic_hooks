@@ -27,8 +27,6 @@ mod test {
         reactive_state_access::{atom::Atom, atom_undo::AtomUndo, reaction::Reaction},
         *,
     };
-    use atomic_hooks_macros::*;
-    use store::RxFunc;
 
     #[atom]
     fn a() -> Atom<i32> {
@@ -44,14 +42,14 @@ mod test {
     fn a_b_subtraction() -> Reaction<i32> {
         let a = a().observe();
         let b = b().observe();
-        (a - b)
+        a - b
     }
 
     #[reaction]
     fn a_b_reversible_subtraction() -> Reaction<i32> {
         let a = a_reversible().observe();
         let b = b_reversible().observe();
-        (a - b)
+        a - b
     }
 
     #[atom]
@@ -62,9 +60,9 @@ mod test {
     #[reaction]
     fn count_print_when_update() -> Reaction<i32> {
         let c = c();
-        let update = a().on_update(|| {
+        let _update = a().on_update(|| {
             println!("UPDATE !!!");
-            c.update(|mut v| *v = *v + 1)
+            c.update(|v| *v = *v + 1)
         });
         c.get()
     }
@@ -72,9 +70,9 @@ mod test {
     #[reaction]
     fn count_subtraction_when_update() -> Reaction<i32> {
         let c = c();
-        let update = a_b_subtraction().on_update(|| {
+        let _update = a_b_subtraction().on_update(|| {
             println!("UPDATE !!!");
-            c.update(|mut v| *v = *v + 1)
+            c.update(|v| *v = *v + 1)
         });
         c.get()
     }
