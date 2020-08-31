@@ -126,6 +126,7 @@ where
 }
 
 use crate::reactive_state_functions::STORE;
+use crate::store::StorageKey;
 use std::cell::RefCell;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -225,5 +226,8 @@ where
             });
         }
         read_reactive_state_with_id(id, func)
+    }
+    fn id(&self) -> StorageKey {
+        StorageKey::TopoKey(self.id)
     }
 }

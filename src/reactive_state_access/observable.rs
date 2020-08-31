@@ -1,3 +1,5 @@
+use crate::store::StorageKey;
+
 pub trait Observable<T>
 where
     T: 'static,
@@ -10,4 +12,6 @@ where
     where
         T: Clone + 'static;
     fn observe_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R;
+
+    fn id(&self) -> StorageKey;
 }

@@ -438,6 +438,9 @@ where
         }
         read_reactive_state_with_id(self.id, func)
     }
+    fn id(&self) -> StorageKey {
+        self.id
+    }
 }
 impl<T> ObserveChangeReactiveState<T> for Reaction<T>
 where

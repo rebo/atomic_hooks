@@ -118,9 +118,6 @@ where
     {
         update_atom_state_with_id(self.id, func);
     }
-    pub fn id(&self) -> StorageKey {
-        self.id
-    }
 
     /// Use to remove an atom from the global state
     /// ```
@@ -301,6 +298,10 @@ where
             });
         }
         read_reactive_state_with_id(self.id, func)
+    }
+
+    fn id(&self) -> StorageKey {
+        self.id
     }
 }
 // The below is broke as need None if no prior state

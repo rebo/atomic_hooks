@@ -136,6 +136,9 @@ where
         }
         read_reactive_state_with_id(self.id, func)
     }
+    fn id(&self) -> StorageKey {
+        self.id
+    }
 }
 
 impl<T> Copy for AtomUndo<T> where T: Clone {}
@@ -229,9 +232,7 @@ where
     {
         update_atom_state_with_id_with_undo(self.id, func);
     }
-    pub fn id(&self) -> StorageKey {
-        self.id
-    }
+
     /// ```
     ///
     /// use atomic_hooks::atom_undo::AtomUndo;
