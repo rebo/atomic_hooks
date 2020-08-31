@@ -479,38 +479,4 @@ mod test {
             "The state  a_reversible should not exist"
         );
     }
-
-    #[test]
-    fn test_reversible_reaction() {
-        let a_b_reversible_subtraction = a_b_reversible_subtraction();
-        a_reversible().set(0);
-        b_reversible().set(0);
-        a_reversible().update(|state| *state = 40);
-        assert_eq!(a_reversible().get(), 40, "We should get 40 as value for a");
-        assert_eq!(
-            a_b_reversible_subtraction.get(),
-            40,
-            "We should get 40 for subtraction because setting"
-        );
-
-        global_undo_queue().travel_backwards();
-        assert_eq!(
-            a_b_reversible_subtraction.get(),
-            0,
-            "We should get 0 because back in time"
-        );
-
-        b_reversible().inert_set(0);
-        assert_eq!(
-            a_b_reversible_subtraction.get(),
-            0,
-            "We should get 0 for subtraction because setting inert"
-        );
-        a_reversible().set(20);
-        assert_eq!(
-            a_b_reversible_subtraction.get(),
-            20,
-            "We should get 20 for subtraction because setting"
-        );
-    }
 }
