@@ -159,6 +159,7 @@ where
     /// ```
     /// use atomic_hooks::atom_undo::AtomUndo;
     /// use atomic_hooks::Observable;
+    /// use atomic_hooks::reaction::Reaction;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -169,10 +170,10 @@ where
     /// }
     ///
     /// #[reaction]
-    /// fn reaction_a_b_subtraction() {
+    /// fn reaction_a_b_subtraction() -> Reaction<i32> {
     ///     let a = a().observe();
     ///     let b = b().observe();
-    ///     (a - b)
+    ///     a - b
     /// }
     ///
     /// a().inert_set(1);

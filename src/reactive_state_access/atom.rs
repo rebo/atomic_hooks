@@ -41,6 +41,7 @@ where
     /// ```
     /// use atomic_hooks::atom::Atom;
     /// use atomic_hooks::Observable;
+    /// use atomic_hooks::reaction::Reaction;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -49,10 +50,10 @@ where
     ///     0
     /// }
     /// #[reaction]
-    /// fn reaction_a_b_subtraction() {
+    /// fn reaction_a_b_subtraction() -> Reaction<i32>{
     ///     let a = a().observe();
     ///     let b = b().observe();
-    ///     (a - b)
+    ///     a - b
     /// }
     /// a().inert_set(1);
     /// let diff = reaction_a_b_subtraction();
@@ -520,7 +521,7 @@ where
 mod test {
     use super::*;
     use crate::{
-        reactive_state_access::{atom::Atom, atom_undo::AtomUndo, reaction::Reaction},
+        reactive_state_access::{atom::Atom, reaction::Reaction},
         *,
     };
 

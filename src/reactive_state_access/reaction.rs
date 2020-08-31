@@ -594,7 +594,7 @@ where
     ///         previous = *p;
     ///         current = *c;
     ///     });
-    ///     assert_eq!(previous, 1); /
+    ///     assert_eq!(previous, 1);
     ///     assert_eq!(current, 2);
     /// ```
     #[topo::nested]
