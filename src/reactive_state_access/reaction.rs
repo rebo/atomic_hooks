@@ -3,8 +3,9 @@ use crate::{
     remove_reactive_state_with_id, store::StorageKey, Observable, RxFunc,
 };
 
-use crate::reactive_state_access::state_access::CloneState;
-use crate::reactive_state_access::{CloneReactiveState, ObserveChangeReactiveState};
+use crate::reactive_state_access::{
+    state_access::CloneState, CloneReactiveState, ObserveChangeReactiveState,
+};
 use std::marker::PhantomData;
 
 /// A reaction is an observable state combined from one or multiple atom state.
@@ -13,10 +14,7 @@ use std::marker::PhantomData;
 /// updated as long as the update on the atom is not **inert**.  
 ///
 /// ```
-///
-/// use atomic_hooks::atom::Atom;
-/// use atomic_hooks::reaction::Reaction;
-/// use atomic_hooks::Observable;
+/// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
 /// #[atom]
 /// fn a() -> Atom<i32> {
 ///     0
@@ -109,9 +107,7 @@ where
     }
     /// Remove the reaction from the global state
     /// ```
-    /// use atomic_hooks::atom::Atom;
-    /// use atomic_hooks::reaction::Reaction;
-    /// use atomic_hooks::Observable;
+    /// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -145,9 +141,7 @@ where
 
     ///
     /// ```
-    /// use atomic_hooks::atom::Atom;
-    /// use atomic_hooks::reaction::Reaction;
-    /// use atomic_hooks::Observable;
+    /// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -190,9 +184,7 @@ where
     }
     /// Check if the state_exist
     /// ```
-    /// use atomic_hooks::atom::Atom;
-    /// use atomic_hooks::reaction::Reaction;
-    /// use atomic_hooks::Observable;
+    /// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -231,9 +223,7 @@ where
     }
     /// Let you get the value as a reference from a closure.
     /// ```
-    /// use atomic_hooks::atom::Atom;
-    /// use atomic_hooks::reaction::Reaction;
-    /// use atomic_hooks::Observable;
+    /// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -265,9 +255,7 @@ where
     /// This method needs to be use insided a function body that has the
     /// attributes **[reaction]**.
     /// ```
-    /// use atomic_hooks::atom::Atom;
-    /// use atomic_hooks::reaction::Reaction;
-    /// use atomic_hooks::Observable;
+    /// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -327,9 +315,7 @@ where
     /// This method give us the possibility to know if a reaction has been
     /// updated.
     /// ```
-    /// use atomic_hooks::atom::Atom;
-    /// use atomic_hooks::reaction::Reaction;
-    /// use atomic_hooks::Observable;
+    /// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -406,9 +392,7 @@ where
     ///
     /// - the unit test is failing so I guess we need to investigate the bug
     /// ```
-    /// use atomic_hooks::atom::Atom;
-    /// use atomic_hooks::reaction::Reaction;
-    /// use atomic_hooks::Observable;
+    /// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -457,9 +441,7 @@ where
     /// ## Todo
     /// - the unit test is failing so I guess we need to investigate the bug
     /// ```
-    /// use atomic_hooks::atom::Atom;
-    /// use atomic_hooks::reaction::Reaction;
-    /// use atomic_hooks::Observable;
+    /// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -577,7 +559,7 @@ where
 mod test {
     use super::*;
     use crate::{
-        reactive_state_access::{atom::Atom, atom_undo::AtomUndo, reaction::Reaction},
+        reactive_state_access::{atom::Atom, atom_reversible::AtomReversible, reaction::Reaction},
         *,
     };
 
@@ -630,13 +612,13 @@ mod test {
         c.get()
     }
 
-    #[atom(undo)]
-    fn a_reversible() -> AtomUndo<i32> {
+    #[atom(reversible)]
+    fn a_reversible() -> AtomReversible<i32> {
         0
     }
 
-    #[atom(undo)]
-    fn b_reversible() -> AtomUndo<i32> {
+    #[atom(reversible)]
+    fn b_reversible() -> AtomReversible<i32> {
         0
     }
     #[test]
@@ -798,7 +780,7 @@ mod test {
             "We should get 40 for subtraction because setting"
         );
 
-        global_undo_queue().travel_backwards();
+        global_reverse_queue().travel_backwards();
         assert_eq!(
             a_b_reversible_subtraction.get(),
             0,

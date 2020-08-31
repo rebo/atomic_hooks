@@ -1,11 +1,12 @@
-use crate::reactive_state_access::CloneReactiveState;
 use crate::{
-    clone_reactive_state_with_id, reactive_state_exists_for_id,
+    clone_reactive_state_with_id,
+    reactive_state_access::CloneReactiveState,
+    reactive_state_exists_for_id,
     reactive_state_functions::{
-        execute_reaction_nodes, remove_reactive_state_with_id_with_undo,
-        set_atom_state_with_id_with_undo, update_atom_state_with_id_with_undo,
+        execute_reaction_nodes, remove_reactive_reversible_state_with_id,
+        set_atom_reversible_state_with_id, update_atom_reversible_state_with_id,
     },
-    read_reactive_state_with_id, set_inert_atom_state_with_id_with_undo,
+    read_reactive_state_with_id, set_inert_atom_reversible_state_with_id,
     store::StorageKey,
     Observable, RxFunc,
 };
@@ -18,17 +19,17 @@ use std::marker::PhantomData;
 /// ```
 /// use atomic_hooks_macros::*;
 /// use store::RxFunc;
-/// use atomic_hooks::{global_undo_queue, AtomUndo, GlobalUndo,
+/// use atomic_hooks::{global_reverse_queue, AtomUndo, GlobalUndo,
 /// CloneReactiveState};
-/// use atomic_hooks::atom_undo::AtomUndo;
+/// use atomic_hooks::atom_reversible::AtomReversible;
 ///
-/// #[atom(undo)]
-/// fn a() -> AtomUndo<i32> {
+/// #[atom(reversible)]
+/// fn a() -> AtomReversible<i32> {
 ///     0
 /// }
 ///
-/// #[atom(undo)]
-/// fn b() -> AtomUndo<i32> {
+/// #[atom(reversible)]
+/// fn b() -> AtomReversible<i32> {
 ///    0
 /// }
 ///
@@ -43,20 +44,20 @@ use std::marker::PhantomData;
 ///
 ///     assert_eq!(a().get(), 4, "We should get 4 as value for a");
 ///
-///     global_undo_queue().travel_backwards();
+///     global_reverse_queue().travel_backwards();
 ///     assert_eq!(b().get(), 10, "We should get 10 as value for b");
 ///
-///     global_undo_queue().travel_backwards();
+///     global_reverse_queue().travel_backwards();
 ///     assert_eq!(a().get(), 5, "We should get 5 as value for a");
 ///
-///     global_undo_queue().travel_backwards();
+///     global_reverse_queue().travel_backwards();
 ///     assert_eq!(a().get(), 3, "We should get 3 as value for a");
 ///
-///     global_undo_queue().travel_backwards();
+///     global_reverse_queue().travel_backwards();
 ///     assert_eq!(a().get(), 0, "We should get 0 as value for a");
 /// }
 ///  ```
-pub struct AtomUndo<T>
+pub struct AtomReversible<T>
 where
     T: Clone,
 {
@@ -64,7 +65,7 @@ where
     pub _phantom_data_stored_type: PhantomData<T>,
 }
 
-impl<T> std::fmt::Debug for AtomUndo<T>
+impl<T> std::fmt::Debug for AtomReversible<T>
 where
     T: Clone,
 {
@@ -73,12 +74,12 @@ where
     }
 }
 
-impl<T> Clone for AtomUndo<T>
+impl<T> Clone for AtomReversible<T>
 where
     T: Clone,
 {
-    fn clone(&self) -> AtomUndo<T> {
-        AtomUndo::<T> {
+    fn clone(&self) -> AtomReversible<T> {
+        AtomReversible::<T> {
             id: self.id,
 
             _phantom_data_stored_type: PhantomData::<T>,
@@ -86,7 +87,7 @@ where
     }
 }
 
-impl<T> Observable<T> for AtomUndo<T>
+impl<T> Observable<T> for AtomReversible<T>
 where
     T: 'static + Clone,
 {
@@ -95,14 +96,14 @@ where
     }
 }
 
-impl<T> Copy for AtomUndo<T> where T: Clone {}
+impl<T> Copy for AtomReversible<T> where T: Clone {}
 
-impl<T> AtomUndo<T>
+impl<T> AtomReversible<T>
 where
     T: 'static + Clone,
 {
-    pub fn new(id: StorageKey) -> AtomUndo<T> {
-        AtomUndo {
+    pub fn new(id: StorageKey) -> AtomReversible<T> {
+        AtomReversible {
             id,
             _phantom_data_stored_type: PhantomData,
         }
@@ -112,15 +113,13 @@ where
     /// observers.
     ///
     /// ```
-    /// use atomic_hooks::atom_undo::AtomUndo;
-    /// use atomic_hooks::Observable;
-    /// use atomic_hooks::reaction::Reaction;
-    /// #[atom(undo)]
-    /// fn a() -> AtomUndo<i32> {
+    /// use atomic_hooks::{atom_reversible::AtomReversible, reaction::Reaction, Observable};
+    /// #[atom(reversible)]
+    /// fn a() -> AtomReversible<i32> {
     ///     0
     /// }
-    /// #[atom(undo)]
-    /// fn b() -> AtomUndo<i32> {
+    /// #[atom(reversible)]
+    /// fn b() -> AtomReversible<i32> {
     ///     0
     /// }
     ///
@@ -146,12 +145,12 @@ where
     where
         T: 'static,
     {
-        set_inert_atom_state_with_id_with_undo(value, self.id);
+        set_inert_atom_reversible_state_with_id(value, self.id);
     }
     /// ```
-    /// use atomic_hooks::atom_undo::AtomUndo;
-    /// #[atom(undo)]
-    /// fn a() -> AtomUndo<i32> {
+    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// #[atom(reversible)]
+    /// fn a() -> AtomReversible<i32> {
     ///     0
     /// }
     ///
@@ -165,16 +164,16 @@ where
     where
         T: 'static,
     {
-        set_atom_state_with_id_with_undo(value, self.id);
+        set_atom_reversible_state_with_id(value, self.id);
     }
     /// This is use for example when we want to update a component rendering
     /// depending of a state. We update the atom so the component will
     /// rerender with the new state. If many components subscribed to the
     /// atom, then all of them will get the update.
     /// ```
-    /// use atomic_hooks::atom_undo::AtomUndo;
-    /// #[atom(undo)]
-    /// fn a() -> AtomUndo<i32> {
+    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// #[atom(reversible)]
+    /// fn a() -> AtomReversible<i32> {
     ///     0
     /// }
     /// a().update(|state| *state = 45);
@@ -184,14 +183,13 @@ where
     where
         T: 'static,
     {
-        update_atom_state_with_id_with_undo(self.id, func);
+        update_atom_reversible_state_with_id(self.id, func);
     }
 
     /// ```
-    ///
-    /// use atomic_hooks::atom_undo::AtomUndo;
-    /// #[atom(undo)]
-    /// fn a() -> AtomUndo<i32> {
+    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// #[atom(reversible)]
+    /// fn a() -> AtomReversible<i32> {
     ///     0
     /// }
     ///
@@ -200,16 +198,15 @@ where
     /// assert_eq!(a().state_exists(), false, "The a state should not exist");
     /// ```
     pub fn remove(self) -> Option<T> {
-        remove_reactive_state_with_id_with_undo(self.id)
+        remove_reactive_reversible_state_with_id(self.id)
     }
     /// ## Question :
     /// Why do we have remove and delete ?
     ///
     /// ```
-    ///
-    /// use atomic_hooks::atom_undo::AtomUndo;
-    /// #[atom(undo)]
-    /// fn a() -> AtomUndo<i32> {
+    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// #[atom(reversible)]
+    /// fn a() -> AtomReversible<i32> {
     ///     0
     /// }
     ///
@@ -222,11 +219,9 @@ where
     }
     /// Reset to the initial value.
     /// ```
-    ///
-    ///
-    /// use atomic_hooks::atom_undo::AtomUndo;
-    /// #[atom(undo)]
-    /// fn a() -> AtomUndo<i32> {
+    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// #[atom(reversible)]
+    /// fn a() -> AtomReversible<i32> {
     ///     0
     /// }
     ///
@@ -242,11 +237,9 @@ where
         execute_reaction_nodes(&self.id);
     }
     /// ```
-    ///
-    ///
-    /// use atomic_hooks::atom_undo::AtomUndo;
-    /// #[atom(undo)]
-    /// fn a() -> AtomUndo<i32> {
+    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// #[atom(reversible)]
+    /// fn a() -> AtomReversible<i32> {
     ///     0
     /// }
     ///
@@ -261,10 +254,9 @@ where
 
     /// Allow you to get the state through a reference with a closure.
     /// ```
-    ///
-    /// use atomic_hooks::atom_undo::AtomUndo;
-    /// #[atom(undo)]
-    /// fn a() -> AtomUndo<i32> {
+    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// #[atom(reversible)]
+    /// fn a() -> AtomReversible<i32> {
     ///     0
     /// }
     /// a().set(3);
@@ -289,7 +281,7 @@ where
     //     }
     // }
 }
-impl<T> CloneReactiveState<T> for AtomUndo<T>
+impl<T> CloneReactiveState<T> for AtomReversible<T>
 where
     T: Clone + 'static,
 {
@@ -307,7 +299,7 @@ where
 mod test {
     use super::*;
     use crate::{
-        reactive_state_access::{atom::Atom, atom_undo::AtomUndo, reaction::Reaction},
+        reactive_state_access::{atom::Atom, atom_reversible::AtomReversible, reaction::Reaction},
         *,
     };
 
@@ -326,13 +318,13 @@ mod test {
     //     c.get()
     // }
 
-    #[atom(undo)]
-    fn a_reversible() -> AtomUndo<i32> {
+    #[atom(reversible)]
+    fn a_reversible() -> AtomReversible<i32> {
         0
     }
 
-    #[atom(undo)]
-    fn b_reversible() -> AtomUndo<i32> {
+    #[atom(reversible)]
+    fn b_reversible() -> AtomReversible<i32> {
         0
     }
     #[reaction]
@@ -375,26 +367,26 @@ mod test {
         a_reversible().set(4);
 
         assert_eq!(a_reversible().get(), 4, "We should get 4 as value for a");
-        global_undo_queue().travel_backwards();
+        global_reverse_queue().travel_backwards();
         assert_eq!(b_reversible().get(), 10, "We should get 10 as value for b");
-        global_undo_queue().travel_backwards();
+        global_reverse_queue().travel_backwards();
         assert_eq!(a_reversible().get(), 5, "We should get 5 as value for a");
         eprintln!("{:?}", a_reversible().get());
         eprintln!("{:?}", b_reversible().get());
-        eprintln!("{:?}", global_undo_queue());
+        eprintln!("{:?}", global_reverse_queue());
 
-        global_undo_queue().travel_backwards(); // Why do we need 2 times         global_undo_queue().travel_backwards(); ?
+        global_reverse_queue().travel_backwards(); // Why do we need 2 times         global_undo_queue().travel_backwards(); ?
         eprintln!("{:?}", a_reversible().get());
         eprintln!("{:?}", b_reversible().get());
-        eprintln!("{:?}", global_undo_queue());
-        global_undo_queue().travel_backwards();
-        global_undo_queue().travel_backwards();
+        eprintln!("{:?}", global_reverse_queue());
+        global_reverse_queue().travel_backwards();
+        global_reverse_queue().travel_backwards();
         assert_eq!(a_reversible().get(), 3, "We should get 3 as value for a");
         eprintln!("{:?}", a_reversible().get());
         eprintln!("{:?}", b_reversible().get());
-        eprintln!("{:?}", global_undo_queue());
-        global_undo_queue().travel_backwards();
-        global_undo_queue().travel_backwards();
+        eprintln!("{:?}", global_reverse_queue());
+        global_reverse_queue().travel_backwards();
+        global_reverse_queue().travel_backwards();
         assert_eq!(a_reversible().get(), 0, "We should get 0 as value for a");
     }
 

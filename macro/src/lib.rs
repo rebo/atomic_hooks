@@ -15,7 +15,7 @@ use syn::{AttributeArgs};
 #[derive(Debug, FromMeta)]
 struct MacroArgs {
     #[darling(default)]
-    undo: bool,
+    reversible: bool,
 }
 
 #[derive(Debug, FromMeta)]
@@ -44,8 +44,8 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
 
     
 
-    let atom_fn_ident = if args.undo {
-        format_ident!("atom_undo")
+    let atom_fn_ident = if args.reversible {
+        format_ident!("atom_reverse")
     }  else {
         format_ident!("atom")
     };
@@ -60,30 +60,30 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
 
 
     let the_type = 
-    if args.undo {
+    if args.reversible {
         match *the_outer_type {
             syn::Type::Path(p) => {
                 
                 if let Some(atom_segment) = p.path.segments.first() {
-                    if atom_segment.ident.to_string() != "AtomUndo" {
-                        panic!("You really need to return an AtomUndo wrapped type");
+                    if atom_segment.ident.to_string() != "AtomReversible" {
+                        panic!("You really need to return an AtomReversible wrapped type");
                     }
                     match &atom_segment.arguments {
                             syn::PathArguments::AngleBracketed(angle_brack_args) => {
-                                let first_arg = angle_brack_args.args.first().expect("AtomUndo should have a first type");
+                                let first_arg = angle_brack_args.args.first().expect("AtomReversible should have a first type");
                                 if let syn::GenericArgument::Type(a_type) = first_arg {
                                     a_type.clone()
                                 } else {
-                                    panic!("AtomUndo doest hold a type")
+                                    panic!("AtomReversible doest hold a type")
                                 }
                             },
-                            _ => panic!("AtomUndo has no type???")
+                            _ => panic!("AtomReversible has no type???")
                     }
                 } else { 
-                    panic!("You do need to return an AtomUndo wrapped type");
+                    panic!("You do need to return an AtomReversible wrapped type");
                 }
             },
-            _ => panic!("You need to return an AtomUndo wrapped type"),
+            _ => panic!("You need to return an AtomReversible wrapped type"),
         }
 
     } else {
@@ -153,8 +153,8 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
     
 
 
-    let set_inert_with_undo= if args.undo {
-        quote!( set_inert_atom_state_with_id_with_undo::<#the_type>(value,__id ); )
+    let set_inert_with_reverse = if args.reversible {
+        quote!( set_inert_atom_reversible_state_with_id::<#the_type>(value,__id ); )
      } else {
         quote!( set_inert_atom_state_with_id::<#the_type>(value,__id );)
      };
@@ -179,7 +179,7 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
                             illicit::Layer::new().offer(std::cell::RefCell::new(context) ).enter(|| {
                                 
                                 let value = {#body};
-                                #set_inert_with_undo
+                                #set_inert_with_reverse
                             })
 
 

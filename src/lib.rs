@@ -14,7 +14,7 @@ pub mod reactive_state_functions;
 // helpers
 mod helpers;
 // mod seed_integration;
-pub mod undo;
+pub mod reverse;
 
 // public exports
 mod prelude;

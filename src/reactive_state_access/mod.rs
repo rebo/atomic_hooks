@@ -1,6 +1,6 @@
 // If the stored type is clone, then implement clone for ReactiveStateAccess
 pub mod atom;
-pub mod atom_undo;
+pub mod atom_reversible;
 pub mod observable;
 pub mod reaction;
 pub mod state_access;
