@@ -394,25 +394,6 @@ impl<T> Observable<T> for Reaction<T>
 where
     T: 'static,
 {
-    fn observe(&self) -> T
-    where
-        T: Clone,
-    {
-        let context = illicit::get::<RefCell<ReactiveContext>>().expect(
-            "No #[reaction] context found, are you sure you are in one? I.e. does the current \
-             function have a #[reaction] tag?",
-        );
-        context.borrow_mut().reactive_state_accessors.push(self.id);
-
-        STORE.with(|store_refcell| {
-            store_refcell
-                .borrow_mut()
-                .add_dependency(&self.id, &context.borrow().key);
-        });
-
-        clone_reactive_state_with_id::<T>(self.id).unwrap()
-    }
-
     #[topo::nested]
     fn observe_update(&self) -> (Option<T>, T)
     where
