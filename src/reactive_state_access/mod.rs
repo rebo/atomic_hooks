@@ -2,6 +2,7 @@
 pub mod atom;
 pub mod atom_undo;
 pub mod reaction;
+pub mod state_access;
 
 pub trait CloneReactiveState<T>
 where

@@ -55,7 +55,6 @@ pub use crate::{
         reset_unseen_id_list, set_state_with_topo_id, state_exists_for_topo_id, unseen_ids,
         update_state_with_topo_id, use_state, use_state_current,
     },
-    state_access::{ChangedState, CloneState, StateAccess},
     unmount::{StateAccessUnmount, Unmount},
 };
 

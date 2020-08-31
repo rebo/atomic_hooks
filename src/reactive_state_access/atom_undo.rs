@@ -1,3 +1,4 @@
+use crate::reactive_state_access::state_access::CloneState;
 use crate::reactive_state_access::CloneReactiveState;
 use crate::reactive_state_functions::STORE;
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
     },
     read_reactive_state_with_id, set_inert_atom_state_with_id_with_undo,
     store::StorageKey,
-    CloneState, Observable, ReactiveContext, RxFunc,
+    Observable, ReactiveContext, RxFunc,
 };
 use std::cell::RefCell;
 use std::marker::PhantomData;

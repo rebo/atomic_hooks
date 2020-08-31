@@ -455,6 +455,7 @@ where
     }
 }
 
+use crate::reactive_state_access::state_access::CloneState;
 use crate::reactive_state_access::{CloneReactiveState, ObserveChangeReactiveState};
 use crate::reactive_state_functions::STORE;
 use crate::{
@@ -462,7 +463,7 @@ use crate::{
     reactive_state_functions::{execute_reaction_nodes, set_atom_state_with_id},
     read_reactive_state_with_id, remove_reactive_state_with_id, set_inert_atom_state_with_id,
     store::StorageKey,
-    update_atom_state_with_id, CloneState, Observable, ReactiveContext, RxFunc,
+    update_atom_state_with_id, Observable, ReactiveContext, RxFunc,
 };
 use std::cell::RefCell;
 use std::{

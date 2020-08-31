@@ -4,7 +4,6 @@ pub mod store;
 
 // hooks
 mod hooks_state_functions;
-mod state_access;
 
 // reactive state
 

@@ -1,9 +1,9 @@
 use crate::{
     clone_reactive_state_with_id, reactive_state_exists_for_id, read_reactive_state_with_id,
-    remove_reactive_state_with_id, store::StorageKey, CloneState, Observable, ReactiveContext,
-    RxFunc,
+    remove_reactive_state_with_id, store::StorageKey, Observable, ReactiveContext, RxFunc,
 };
 
+use crate::reactive_state_access::state_access::CloneState;
 use crate::reactive_state_access::{CloneReactiveState, ObserveChangeReactiveState};
 use crate::reactive_state_functions::STORE;
 use std::cell::RefCell;
