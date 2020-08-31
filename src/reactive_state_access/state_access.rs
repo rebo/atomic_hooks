@@ -1,7 +1,4 @@
-use crate::{
-    clone_reactive_state_with_id, hooks_state_functions::*, store::TopoKey, Observable,
-    ReactiveContext,
-};
+use crate::{hooks_state_functions::*, store::TopoKey, Observable};
 use std::marker::PhantomData;
 
 ///  Accessor struct that provides access to getting and setting the
@@ -125,9 +122,7 @@ where
     }
 }
 
-use crate::reactive_state_functions::STORE;
 use crate::store::StorageKey;
-use std::cell::RefCell;
 use std::ops::{Add, Div, Mul, Sub};
 
 impl<T> Add for StateAccess<T>
@@ -178,6 +173,12 @@ impl<T> Observable<T> for StateAccess<T>
 where
     T: 'static,
 {
+    fn id(&self) -> StorageKey {
+        StorageKey::TopoKey(self.id)
+    }
+
+    // <T: 'static, F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> R {
+
     #[topo::nested]
     fn observe_update(&self) -> (Option<T>, T)
     where
@@ -188,11 +189,5 @@ where
         let new_value = self.get();
         previous_value_access.set(Some(new_value.clone()));
         (opt_previous_value, new_value)
-    }
-
-    // <T: 'static, F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> R {
-
-    fn id(&self) -> StorageKey {
-        StorageKey::TopoKey(self.id)
     }
 }

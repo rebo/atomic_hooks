@@ -1,12 +1,10 @@
 use crate::{
     clone_reactive_state_with_id, reactive_state_exists_for_id, read_reactive_state_with_id,
-    remove_reactive_state_with_id, store::StorageKey, Observable, ReactiveContext, RxFunc,
+    remove_reactive_state_with_id, store::StorageKey, Observable, RxFunc,
 };
 
 use crate::reactive_state_access::state_access::CloneState;
 use crate::reactive_state_access::{CloneReactiveState, ObserveChangeReactiveState};
-use crate::reactive_state_functions::STORE;
-use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// A reaction is an observable state combined from one or multiple atom state.
@@ -394,6 +392,10 @@ impl<T> Observable<T> for Reaction<T>
 where
     T: 'static,
 {
+    fn id(&self) -> StorageKey {
+        self.id
+    }
+
     #[topo::nested]
     fn observe_update(&self) -> (Option<T>, T)
     where
@@ -404,10 +406,6 @@ where
         let new_value = self.get();
         previous_value_access.set(Some(new_value.clone()));
         (opt_previous_value, new_value)
-    }
-
-    fn id(&self) -> StorageKey {
-        self.id
     }
 }
 impl<T> ObserveChangeReactiveState<T> for Reaction<T>

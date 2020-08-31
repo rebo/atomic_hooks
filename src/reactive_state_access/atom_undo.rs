@@ -1,6 +1,5 @@
 use crate::reactive_state_access::state_access::CloneState;
 use crate::reactive_state_access::CloneReactiveState;
-use crate::reactive_state_functions::STORE;
 use crate::{
     clone_reactive_state_with_id, reactive_state_exists_for_id,
     reactive_state_functions::{
@@ -9,9 +8,9 @@ use crate::{
     },
     read_reactive_state_with_id, set_inert_atom_state_with_id_with_undo,
     store::StorageKey,
-    Observable, ReactiveContext, RxFunc,
+    Observable, RxFunc,
 };
-use std::cell::RefCell;
+
 use std::marker::PhantomData;
 
 ///
@@ -92,6 +91,10 @@ impl<T> Observable<T> for AtomUndo<T>
 where
     T: 'static + Clone,
 {
+    fn id(&self) -> StorageKey {
+        self.id
+    }
+
     #[topo::nested]
     fn observe_update(&self) -> (Option<T>, T)
     where
@@ -102,10 +105,6 @@ where
         let new_value = self.get();
         previous_value_access.set(Some(new_value.clone()));
         (opt_previous_value, new_value)
-    }
-
-    fn id(&self) -> StorageKey {
-        self.id
     }
 }
 
