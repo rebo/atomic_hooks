@@ -693,11 +693,21 @@ mod test {
     }
 
     #[test]
+    fn test_copy_atom() {
+        let a = a();
+        a.set(8);
+        assert_eq!(a.get(), 8, "We should get 8 as value");
+
+        let a_1 = a;
+        assert_eq!(a_1.get(), 8, "We should get 8 as value on the copy as well")
+    }
+    #[test]
     fn test_clone_atom() {
         let a = a();
         a.set(8);
+        assert_eq!(a.get(), 8, "We should get 8 as value");
 
         let a_1 = a.clone();
-        assert_eq!(a_1.get(), 8, "We should get 8 as value")
+        assert_eq!(a_1.get(), 8, "We should get 8 as value on the copy as well")
     }
 }
