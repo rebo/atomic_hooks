@@ -262,7 +262,7 @@ where
         read_reactive_state_with_id(self.id, func)
     }
     /// Triggers the passed function when the atom is updated
-    /// This method needs to be use inside a function body that has the
+    /// This method needs to be use insided a function body that has the
     /// attributes **[reaction]**.
     /// ```
     /// use atomic_hooks::atom::Atom;

@@ -208,7 +208,7 @@ where
     }
 
     /// Triggers the passed function when the atom is updated
-    /// This method needs to be use inside a function body that has the
+    /// This method needs to be used inside a function body that has the
     /// attributes **[reaction]**.
     ///
     /// ```
