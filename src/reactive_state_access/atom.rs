@@ -250,6 +250,59 @@ where
         }
     }
 }
+
+impl<T> Observable<T> for Atom<T>
+where
+    T: 'static,
+{
+    fn observe(&self) -> T
+    where
+        T: 'static + Clone,
+    {
+        let context = illicit::get::<RefCell<ReactiveContext>>().expect(
+            "No #[reaction] context found, are you sure you are in one? I.e. does the current \
+             function have a #[reaction] tag?",
+        );
+
+        context.borrow_mut().reactive_state_accessors.push(self.id);
+
+        STORE.with(|store_refcell| {
+            store_refcell
+                .borrow_mut()
+                .add_dependency(&self.id, &context.borrow().key);
+        });
+
+        clone_reactive_state_with_id::<T>(self.id).unwrap()
+    }
+
+    #[topo::nested]
+    fn observe_update(&self) -> (Option<T>, T)
+    where
+        T: 'static + Clone,
+    {
+        let previous_value_access = crate::hooks_state_functions::use_state(|| None);
+        let opt_previous_value = previous_value_access.get();
+        let new_value = self.get();
+        previous_value_access.set(Some(new_value.clone()));
+        (opt_previous_value, new_value)
+    }
+
+    fn observe_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
+        if let Ok(context) = illicit::get::<RefCell<ReactiveContext>>() {
+            context
+                .borrow_mut()
+                .reactive_state_accessors
+                .push(self.id.clone());
+
+            STORE.with(|store_refcell| {
+                store_refcell
+                    .borrow_mut()
+                    .add_dependency(&self.id, &context.borrow().key);
+            });
+        }
+        read_reactive_state_with_id(self.id, func)
+    }
+}
 // The below is broke as need None if no prior state
 impl<T> ObserveChangeReactiveState<T> for Atom<T>
 where
@@ -265,6 +318,7 @@ where
     ///   as value.
     /// ```
     /// use atomic_hooks::{Atom, ObserveChangeReactiveState};
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -405,13 +459,15 @@ where
 }
 
 use crate::reactive_state_access::{CloneReactiveState, ObserveChangeReactiveState};
+use crate::reactive_state_functions::STORE;
 use crate::{
     clone_reactive_state_with_id, reactive_state_exists_for_id,
     reactive_state_functions::{execute_reaction_nodes, set_atom_state_with_id},
     read_reactive_state_with_id, remove_reactive_state_with_id, set_inert_atom_state_with_id,
     store::StorageKey,
-    update_atom_state_with_id, Observable, RxFunc,
+    update_atom_state_with_id, CloneState, Observable, ReactiveContext, RxFunc,
 };
+use std::cell::RefCell;
 use std::{
     marker::PhantomData,
     ops::{Add, Div, Mul, Sub},

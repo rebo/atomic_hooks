@@ -1,9 +1,12 @@
 use crate::{
     clone_reactive_state_with_id, reactive_state_exists_for_id, read_reactive_state_with_id,
-    remove_reactive_state_with_id, store::StorageKey, CloneState, Observable, RxFunc,
+    remove_reactive_state_with_id, store::StorageKey, CloneState, Observable, ReactiveContext,
+    RxFunc,
 };
 
 use crate::reactive_state_access::{CloneReactiveState, ObserveChangeReactiveState};
+use crate::reactive_state_functions::STORE;
+use std::cell::RefCell;
 use std::marker::PhantomData;
 
 /// A reaction is an observable state combined from one or multiple atom state.
@@ -372,6 +375,58 @@ where
     }
 }
 
+impl<T> Observable<T> for Reaction<T>
+where
+    T: 'static,
+{
+    fn observe(&self) -> T
+    where
+        T: Clone,
+    {
+        let context = illicit::get::<RefCell<ReactiveContext>>().expect(
+            "No #[reaction] context found, are you sure you are in one? I.e. does the current \
+             function have a #[reaction] tag?",
+        );
+        context.borrow_mut().reactive_state_accessors.push(self.id);
+
+        STORE.with(|store_refcell| {
+            store_refcell
+                .borrow_mut()
+                .add_dependency(&self.id, &context.borrow().key);
+        });
+
+        clone_reactive_state_with_id::<T>(self.id).unwrap()
+    }
+
+    #[topo::nested]
+    fn observe_update(&self) -> (Option<T>, T)
+    where
+        T: 'static + Clone,
+    {
+        let previous_value_access = crate::hooks_state_functions::use_state(|| None);
+        let opt_previous_value = previous_value_access.get();
+        let new_value = self.get();
+        previous_value_access.set(Some(new_value.clone()));
+        (opt_previous_value, new_value)
+    }
+
+    // <T: 'static, F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> R {
+    fn observe_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
+        if let Ok(context) = illicit::get::<RefCell<ReactiveContext>>() {
+            context
+                .borrow_mut()
+                .reactive_state_accessors
+                .push(self.id.clone());
+
+            STORE.with(|store_refcell| {
+                store_refcell
+                    .borrow_mut()
+                    .add_dependency(&self.id, &context.borrow().key);
+            });
+        }
+        read_reactive_state_with_id(self.id, func)
+    }
+}
 impl<T> ObserveChangeReactiveState<T> for Reaction<T>
 where
     T: Clone + 'static + PartialEq,

@@ -1,4 +1,5 @@
 use crate::reactive_state_access::CloneReactiveState;
+use crate::reactive_state_functions::STORE;
 use crate::{
     clone_reactive_state_with_id, reactive_state_exists_for_id,
     reactive_state_functions::{
@@ -7,8 +8,9 @@ use crate::{
     },
     read_reactive_state_with_id, set_inert_atom_state_with_id_with_undo,
     store::StorageKey,
-    RxFunc,
+    CloneState, Observable, ReactiveContext, RxFunc,
 };
+use std::cell::RefCell;
 use std::marker::PhantomData;
 
 ///
@@ -81,6 +83,59 @@ where
 
             _phantom_data_stored_type: PhantomData::<T>,
         }
+    }
+}
+
+impl<T> Observable<T> for AtomUndo<T>
+where
+    T: 'static + Clone,
+{
+    fn observe(&self) -> T
+    where
+        T: 'static + Clone,
+    {
+        let context = illicit::get::<RefCell<ReactiveContext>>().expect(
+            "No #[reaction] context found, are you sure you are in one? I.e. does the current \
+             function have a #[reaction] tag?",
+        );
+        context.borrow_mut().reactive_state_accessors.push(self.id);
+
+        STORE.with(|store_refcell| {
+            store_refcell
+                .borrow_mut()
+                .add_dependency(&self.id, &context.borrow().key);
+        });
+
+        clone_reactive_state_with_id::<T>(self.id).unwrap()
+    }
+
+    #[topo::nested]
+    fn observe_update(&self) -> (Option<T>, T)
+    where
+        T: 'static + Clone,
+    {
+        let previous_value_access = crate::hooks_state_functions::use_state(|| None);
+        let opt_previous_value = previous_value_access.get();
+        let new_value = self.get();
+        previous_value_access.set(Some(new_value.clone()));
+        (opt_previous_value, new_value)
+    }
+
+    // <T: 'static, F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> R {
+    fn observe_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
+        if let Ok(context) = illicit::get::<RefCell<ReactiveContext>>() {
+            context
+                .borrow_mut()
+                .reactive_state_accessors
+                .push(self.id.clone());
+
+            STORE.with(|store_refcell| {
+                store_refcell
+                    .borrow_mut()
+                    .add_dependency(&self.id, &context.borrow().key);
+            });
+        }
+        read_reactive_state_with_id(self.id, func)
     }
 }
 
