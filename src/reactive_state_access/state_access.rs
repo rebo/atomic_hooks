@@ -176,18 +176,4 @@ where
     fn id(&self) -> StorageKey {
         StorageKey::TopoKey(self.id)
     }
-
-    // <T: 'static, F: FnOnce(&T) -> R, R>(id: StorageKey, func: F) -> R {
-
-    #[topo::nested]
-    fn observe_update(&self) -> (Option<T>, T)
-    where
-        T: 'static + Clone,
-    {
-        let previous_value_access = crate::hooks_state_functions::use_state(|| None);
-        let opt_previous_value = previous_value_access.get();
-        let new_value = self.get();
-        previous_value_access.set(Some(new_value.clone()));
-        (opt_previous_value, new_value)
-    }
 }

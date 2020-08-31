@@ -395,18 +395,6 @@ where
     fn id(&self) -> StorageKey {
         self.id
     }
-
-    #[topo::nested]
-    fn observe_update(&self) -> (Option<T>, T)
-    where
-        T: 'static + Clone,
-    {
-        let previous_value_access = crate::hooks_state_functions::use_state(|| None);
-        let opt_previous_value = previous_value_access.get();
-        let new_value = self.get();
-        previous_value_access.set(Some(new_value.clone()));
-        (opt_previous_value, new_value)
-    }
 }
 impl<T> ObserveChangeReactiveState<T> for Reaction<T>
 where
