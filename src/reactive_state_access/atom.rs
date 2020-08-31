@@ -292,10 +292,7 @@ where
 
     fn observe_with<F: FnOnce(&T) -> R, R>(&self, func: F) -> R {
         if let Ok(context) = illicit::get::<RefCell<ReactiveContext>>() {
-            context
-                .borrow_mut()
-                .reactive_state_accessors
-                .push(self.id.clone());
+            context.borrow_mut().reactive_state_accessors.push(self.id);
 
             STORE.with(|store_refcell| {
                 store_refcell
