@@ -661,7 +661,7 @@ mod test {
         let c = c();
         let _update = a().on_update(|| {
             println!("UPDATE !!!");
-            c.update(|v| *v = *v + 1)
+            c.update(|v| *v += 1)
         });
         c.get()
     }
@@ -671,7 +671,7 @@ mod test {
         let c = c();
         let _update = a_b_subtraction().on_update(|| {
             println!("UPDATE !!!");
-            c.update(|v| *v = *v + 1)
+            c.update(|v| *v += 1)
         });
         c.get()
     }
