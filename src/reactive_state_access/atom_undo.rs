@@ -284,3 +284,168 @@ where
         clone_reactive_state_with_id::<T>(self.id)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{
+        reactive_state_access::{atom::Atom, atom_undo::AtomUndo, reaction::Reaction},
+        *,
+    };
+
+    #[atom]
+    fn c() -> Atom<i32> {
+        0
+    }
+
+    // #[reaction]
+    // fn count_print_when_update() -> Reaction<i32> {
+    //     let c = c();
+    //     let _update = a_reversible().on_update(|| {
+    //         println!("UPDATE !!!");
+    //         c.update(|v| *v = *v + 1)
+    //     });
+    //     c.get()
+    // }
+
+    #[atom(undo)]
+    fn a_reversible() -> AtomUndo<i32> {
+        0
+    }
+
+    #[atom(undo)]
+    fn b_reversible() -> AtomUndo<i32> {
+        0
+    }
+    #[reaction]
+    fn a_b_reversible_subtraction() -> Reaction<i32> {
+        let a = a_reversible().observe();
+        let b = b_reversible().observe();
+        a - b
+    }
+
+    #[test]
+    fn test_get_with() {
+        a_reversible().set(3);
+        b_reversible().set(5);
+
+        a_reversible().get_with(|v| assert_eq!(v, &3, "We should get 3"));
+        b_reversible().get_with(|v| assert_eq!(v, &5, "We should get 5"));
+    }
+
+    // #[test]
+    // fn test_on_update() {
+    //     let print = count_print_when_update();
+    //     a_reversible().update(|v| *v = 32);
+    //     a_reversible().set(2);
+    //     a_reversible().set(25);
+    //     a_reversible().set(1);
+    //
+    //     println!("{:?}", print.get());
+    //
+    //     assert_eq!(print.get(), 5)
+    // }
+
+    #[test]
+    fn test_undo() {
+        a_reversible().set(3);
+
+        a_reversible().set(5);
+
+        b_reversible().set(10);
+
+        a_reversible().set(4);
+
+        assert_eq!(a_reversible().get(), 4, "We should get 4 as value for a");
+        global_undo_queue().travel_backwards();
+        assert_eq!(b_reversible().get(), 10, "We should get 10 as value for b");
+        global_undo_queue().travel_backwards();
+        assert_eq!(a_reversible().get(), 5, "We should get 5 as value for a");
+        eprintln!("{:?}", a_reversible().get());
+        eprintln!("{:?}", b_reversible().get());
+        eprintln!("{:?}", global_undo_queue());
+
+        global_undo_queue().travel_backwards(); // Why do we need 2 times         global_undo_queue().travel_backwards(); ?
+        eprintln!("{:?}", a_reversible().get());
+        eprintln!("{:?}", b_reversible().get());
+        eprintln!("{:?}", global_undo_queue());
+        global_undo_queue().travel_backwards();
+        global_undo_queue().travel_backwards();
+        assert_eq!(a_reversible().get(), 3, "We should get 3 as value for a");
+        eprintln!("{:?}", a_reversible().get());
+        eprintln!("{:?}", b_reversible().get());
+        eprintln!("{:?}", global_undo_queue());
+        global_undo_queue().travel_backwards();
+        global_undo_queue().travel_backwards();
+        assert_eq!(a_reversible().get(), 0, "We should get 0 as value for a");
+    }
+
+    #[test]
+    fn test_update() {
+        a_reversible().set(10);
+        b_reversible().set(10);
+
+        a_reversible().update(|state| *state = 45);
+
+        assert_eq!(a_reversible().get(), 45, "We should get 45 as value for a");
+    }
+
+    #[test]
+    fn test_inert_set() {
+        let a_b_reversible_subtraction = a_b_reversible_subtraction();
+        a_reversible().inert_set(155);
+        assert_eq!(a_reversible().get(), 155, "We should get 155");
+        assert_eq!(
+            a_b_reversible_subtraction.get(),
+            0,
+            "We should get 0 since a & b are set to 0"
+        );
+    }
+
+    #[test]
+    fn test_delete() {
+        a_reversible().delete();
+
+        eprintln!("{:?}", a_reversible().get());
+
+        assert_eq!(
+            a_reversible().state_exists(),
+            false,
+            "The state  a_reversible should not exist"
+        );
+    }
+
+    #[test]
+    fn test_reversible_reaction() {
+        let a_b_reversible_subtraction = a_b_reversible_subtraction();
+        a_reversible().set(0);
+        b_reversible().set(0);
+        a_reversible().update(|state| *state = 40);
+        assert_eq!(a_reversible().get(), 40, "We should get 40 as value for a");
+        assert_eq!(
+            a_b_reversible_subtraction.get(),
+            40,
+            "We should get 40 for subtraction because setting"
+        );
+
+        global_undo_queue().travel_backwards();
+        assert_eq!(
+            a_b_reversible_subtraction.get(),
+            0,
+            "We should get 0 because back in time"
+        );
+
+        b_reversible().inert_set(0);
+        assert_eq!(
+            a_b_reversible_subtraction.get(),
+            0,
+            "We should get 0 for subtraction because setting inert"
+        );
+        a_reversible().set(20);
+        assert_eq!(
+            a_b_reversible_subtraction.get(),
+            20,
+            "We should get 20 for subtraction because setting"
+        );
+    }
+}
