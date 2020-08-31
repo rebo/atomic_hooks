@@ -460,3 +460,188 @@ where
         self.get_with(|s| other.get_with(|o| *o - *s))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{
+        reactive_state_access::{atom::Atom, atom_undo::AtomUndo, reaction::Reaction},
+        *,
+    };
+
+    #[atom]
+    fn a() -> Atom<i32> {
+        0
+    }
+
+    #[atom]
+    fn b() -> Atom<i32> {
+        0
+    }
+
+    #[reaction]
+    fn a_b_subtraction() -> Reaction<i32> {
+        let a = a().observe();
+        let b = b().observe();
+        a - b
+    }
+
+    #[atom]
+    fn c() -> Atom<i32> {
+        0
+    }
+
+    #[reaction]
+    fn count_print_when_update() -> Reaction<i32> {
+        let c = c();
+        let _update = a().on_update(|| {
+            println!("UPDATE !!!");
+            c.update(|v| *v = *v + 1)
+        });
+        c.get()
+    }
+
+    #[reaction]
+    fn count_subtraction_when_update() -> Reaction<i32> {
+        let c = c();
+        let _update = a_b_subtraction().on_update(|| {
+            println!("UPDATE !!!");
+            c.update(|v| *v = *v + 1)
+        });
+        c.get()
+    }
+
+    #[test]
+    fn test_set_atom() {
+        let a = a();
+        assert_eq!(a.get(), 0, "we should get 0 as init value");
+        a.set(8);
+        assert_eq!(a.get(), 8, "We should get 8 as new value inserted with set")
+    }
+
+    #[test]
+    fn test_inert_set() {
+        let a_b_subtraction = a_b_subtraction();
+        a().set(0);
+        b().set(0);
+
+        a().inert_set(165);
+        assert_eq!(
+            a_b_subtraction.get(),
+            0,
+            "We should get 0 for subtraction because inert setting"
+        );
+        assert_eq!(a().get(), 165, "We should get 165");
+    }
+
+    #[test]
+    fn test_update() {
+        a().update(|state| *state = 40);
+        assert_eq!(a().get(), 40, "We should get 40 as value for a");
+    }
+
+    #[test]
+    fn test_get_with() {
+        a().set(3);
+        b().set(5);
+
+        a().get_with(|v| assert_eq!(v, &3, "We should get 3"));
+        b().get_with(|v| assert_eq!(v, &5, "We should get 5"));
+    }
+
+    #[test]
+    fn test_on_update() {
+        let print = count_print_when_update();
+        a().update(|v| *v = 32);
+        a().set(2);
+        a().set(25);
+        a().set(1);
+        println!("{:?}", print.get());
+        assert_eq!(print.get(), 5)
+    }
+
+    #[test]
+    fn test_delete() {
+        a().delete();
+
+        eprintln!("{:?}", a().get());
+
+        assert_eq!(a().state_exists(), false, "The a state should not exist");
+    }
+
+    #[test]
+    fn test_reset_to_default() {
+        a().set(8);
+        assert_eq!(a().get(), 8);
+        a().reset_to_default();
+        assert_eq!(a().get(), 0, "We should get 0 as it is init value");
+    }
+
+    #[test]
+    fn test_observe_on_atom() {
+        let a = a();
+        let change = a.observe_change();
+        println!("{:?}", change.0);
+        println!("{:?}", change.1);
+        assert_eq!(change.0.is_none(), true);
+        assert_eq!(change.1, 0);
+        a.set(1);
+        let change2 = a.observe_change();
+        println!("{:?}", change2.0);
+        println!("{:?}", change2.1);
+        assert_eq!(change2.0.unwrap(), 0);
+        assert_eq!(change2.1, 1);
+    }
+
+    #[test]
+    fn test_has_changed_on_atom() {
+        let a = a();
+        a.set(1);
+        assert_eq!(a.has_changed(), true);
+        a.set(1);
+        assert_eq!(a.has_changed(), false);
+    }
+
+    #[test]
+    fn test_on_changes_on_atom() {
+        let a = a();
+        let mut previous = 99;
+        let mut current = 99;
+        a.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 0); //todo : should we expect None when init ?
+        assert_eq!(current, 0);
+        a.set(1);
+        a.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 0);
+        assert_eq!(current, 1);
+        a.set(1);
+        a.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 0);
+        assert_eq!(current, 1);
+        a.set(2);
+        a.on_change(|p, c| {
+            previous = *p;
+            current = *c;
+        });
+        assert_eq!(previous, 1, "we should get 1");
+        assert_eq!(current, 2, "we should get 2");
+    }
+
+    #[test]
+    fn test_clone_atom() {
+        let a = a();
+        a.set(8);
+
+        let a_1 = a.clone();
+        assert_eq!(a_1.get(), 8, "We should get 8 as value")
+    }
+}
