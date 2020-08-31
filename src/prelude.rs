@@ -58,4 +58,4 @@ pub use crate::{
     unmount::{StateAccessUnmount, Unmount},
 };
 
-pub use crate::observable::Observable;
+pub use crate::reactive_state_access::observable::Observable;

@@ -13,7 +13,6 @@ pub mod reactive_state_functions;
 
 // helpers
 mod helpers;
-mod observable;
 // mod seed_integration;
 pub mod undo;
 
