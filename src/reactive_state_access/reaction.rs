@@ -15,8 +15,10 @@ use std::marker::PhantomData;
 /// updated as long as the update on the atom is not **inert**.  
 ///
 /// ```
-/// use atomic_hooks::{Atom, CloneReactiveState, Observable, Reaction};
 ///
+/// use atomic_hooks::atom::Atom;
+/// use atomic_hooks::reaction::Reaction;
+/// use atomic_hooks::Observable;
 /// #[atom]
 /// fn a() -> Atom<i32> {
 ///     0
@@ -109,7 +111,9 @@ where
     }
     /// Remove the reaction from the global state
     /// ```
-    /// use atomic_hooks::{Atom, Observable, Reaction};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -143,7 +147,9 @@ where
 
     ///
     /// ```
-    /// use atomic_hooks::{Atom, Observable, Reaction};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -186,7 +192,9 @@ where
     }
     /// Check if the state_exist
     /// ```
-    /// use atomic_hooks::{Atom, Observable, Reaction};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -225,7 +233,9 @@ where
     }
     /// Let you get the value as a reference from a closure.
     /// ```
-    /// use atomic_hooks::{Atom, Observable, Reaction};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -257,7 +267,9 @@ where
     /// This method needs to be use inside a function body that has the
     /// attributes **[reaction]**.
     /// ```
-    /// use atomic_hooks::{Atom, CloneReactiveState, Observable, Reaction};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -313,10 +325,13 @@ where
             None
         }
     }
+
     /// This method give us the possibility to know if a reaction has been
     /// updated.
     /// ```
-    /// use atomic_hooks::{Atom, CloneReactiveState, Observable, Reaction};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -437,7 +452,9 @@ where
     ///
     /// - the unit test is failing so I guess we need to investigate the bug
     /// ```
-    /// use atomic_hooks::{Atom, Observable, ObserveChangeReactiveState, Reaction};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -486,7 +503,9 @@ where
     /// ## Todo
     /// - the unit test is failing so I guess we need to investigate the bug
     /// ```
-    /// use atomic_hooks::{Atom, Observable, ObserveChangeReactiveState, Reaction};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -533,7 +552,9 @@ where
     ///
     /// - the unit test is failing so I guess we need to investigate the bug
     /// ```
-    /// use atomic_hooks::{Atom, Observable, ObserveChangeReactiveState, Reaction};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0

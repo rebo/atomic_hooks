@@ -21,6 +21,7 @@ use std::marker::PhantomData;
 /// use store::RxFunc;
 /// use atomic_hooks::{global_undo_queue, AtomUndo, GlobalUndo,
 /// CloneReactiveState};
+/// use atomic_hooks::atom_undo::AtomUndo;
 ///
 /// #[atom(undo)]
 /// fn a() -> AtomUndo<i32> {
@@ -156,7 +157,8 @@ where
     /// observers.
     ///
     /// ```
-    /// use atomic_hooks::{AtomUndo, CloneReactiveState, Observable};
+    /// use atomic_hooks::atom_undo::AtomUndo;
+    /// use atomic_hooks::Observable;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -191,7 +193,7 @@ where
         set_inert_atom_state_with_id_with_undo(value, self.id);
     }
     /// ```
-    /// use atomic_hooks::{AtomUndo, CloneReactiveState};
+    /// use atomic_hooks::atom_undo::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -214,7 +216,7 @@ where
     /// rerender with the new state. If many components subscribed to the
     /// atom, then all of them will get the update.
     /// ```
-    /// use atomic_hooks::{AtomUndo, CloneReactiveState};
+    /// use atomic_hooks::atom_undo::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -232,7 +234,8 @@ where
         self.id
     }
     /// ```
-    /// use atomic_hooks::AtomUndo;
+    ///
+    /// use atomic_hooks::atom_undo::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -249,7 +252,8 @@ where
     /// Why do we have remove and delete ?
     ///
     /// ```
-    /// use atomic_hooks::AtomUndo;
+    ///
+    /// use atomic_hooks::atom_undo::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -264,7 +268,9 @@ where
     }
     /// Reset to the initial value.
     /// ```
-    /// use atomic_hooks::AtomUndo;
+    ///
+    ///
+    /// use atomic_hooks::atom_undo::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -282,7 +288,9 @@ where
         execute_reaction_nodes(&self.id);
     }
     /// ```
-    /// use atomic_hooks::AtomUndo;
+    ///
+    ///
+    /// use atomic_hooks::atom_undo::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0
@@ -299,7 +307,8 @@ where
 
     /// Allow you to get the state through a reference with a closure.
     /// ```
-    /// use atomic_hooks::AtomUndo;
+    ///
+    /// use atomic_hooks::atom_undo::AtomUndo;
     /// #[atom(undo)]
     /// fn a() -> AtomUndo<i32> {
     ///     0

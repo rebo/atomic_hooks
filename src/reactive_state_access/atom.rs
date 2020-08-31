@@ -39,7 +39,8 @@ where
     /// observers.
     ///
     /// ```
-    /// use atomic_hooks::{Atom, CloneReactiveState, Observable};
+    /// use atomic_hooks::atom::Atom;
+    /// use atomic_hooks::Observable;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -74,7 +75,7 @@ where
     /// observers.  
     ///
     /// ```
-    /// use atomic_hooks::{Atom, CloneReactiveState};
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     /// 0
@@ -97,7 +98,7 @@ where
     /// Pass a function that update the atom state related
     /// This update will trigger reactions and observers will get the update
     /// ```
-    /// use atomic_hooks::{Atom, CloneReactiveState};
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -122,7 +123,7 @@ where
 
     /// Use to remove an atom from the global state
     /// ```
-    /// use atomic_hooks::Atom;
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -139,7 +140,7 @@ where
     /// Why do we have remove and delete ?
     ///  
     /// ```
-    /// use atomic_hooks::Atom;
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -156,7 +157,7 @@ where
     }
     /// Reset to the initial value
     /// ```
-    /// use atomic_hooks::{Atom, CloneReactiveState};
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -176,7 +177,7 @@ where
 
     /// Check if the state does exist in the store.
     /// ```
-    /// use atomic_hooks::Atom;
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -193,7 +194,7 @@ where
 
     /// Allow you to get the state through a reference with a closure.
     /// ```
-    /// use atomic_hooks::Atom;
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -213,6 +214,7 @@ where
     /// attributes **[reaction]**.
     ///
     /// ```
+    /// use atomic_hooks::reaction::Reaction;
     /// #[reaction]
     /// fn count_print_when_update() -> Reaction<i32> {
     ///     let c = c();
@@ -317,7 +319,6 @@ where
     /// - the unit is failling for this method because option gives always None
     ///   as value.
     /// ```
-    /// use atomic_hooks::{Atom, ObserveChangeReactiveState};
     /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
@@ -357,7 +358,7 @@ where
     /// - the unit test is failling for this method
     ///
     /// ```
-    /// use atomic_hooks::{Atom, ObserveChangeReactiveState};
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -386,9 +387,7 @@ where
     /// - the unit test is failling for this method after a.set(2)
     ///
     /// ```
-    /// use atomic_hooks::{
-    ///     Atom, CloneReactiveState, Observable, ObserveChangeReactiveState, Reaction,
-    /// };
+    /// use atomic_hooks::atom::Atom;
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
