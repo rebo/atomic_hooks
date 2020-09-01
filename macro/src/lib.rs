@@ -65,25 +65,25 @@ pub fn atom(args: TokenStream, input: TokenStream) -> TokenStream {
             syn::Type::Path(p) => {
                 
                 if let Some(atom_segment) = p.path.segments.first() {
-                    if atom_segment.ident.to_string() != "AtomReversible" {
-                        panic!("You really need to return an AtomReversible wrapped type");
+                    if atom_segment.ident.to_string() != "ReversibleAtom" {
+                        panic!("You really need to return an ReversibleAtom wrapped type");
                     }
                     match &atom_segment.arguments {
                             syn::PathArguments::AngleBracketed(angle_brack_args) => {
-                                let first_arg = angle_brack_args.args.first().expect("AtomReversible should have a first type");
+                                let first_arg = angle_brack_args.args.first().expect("ReversibleAtom should have a first type");
                                 if let syn::GenericArgument::Type(a_type) = first_arg {
                                     a_type.clone()
                                 } else {
-                                    panic!("AtomReversible doest hold a type")
+                                    panic!("ReversibleAtom doest hold a type")
                                 }
                             },
-                            _ => panic!("AtomReversible has no type???")
+                            _ => panic!("ReversibleAtom has no type???")
                     }
                 } else { 
-                    panic!("You do need to return an AtomReversible wrapped type");
+                    panic!("You do need to return an ReversibleAtom wrapped type");
                 }
             },
-            _ => panic!("You need to return an AtomReversible wrapped type"),
+            _ => panic!("You need to return an ReversibleAtom wrapped type"),
         }
 
     } else {

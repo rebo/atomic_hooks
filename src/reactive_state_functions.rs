@@ -1,5 +1,5 @@
 use crate::{
-    reactive_state_access::{atom::Atom, atom_reversible::AtomReversible, reaction::Reaction},
+    reactive_state_access::{atom::Atom, reaction::Reaction, reversible_atom::ReversibleAtom},
     reverse::global_reverse_queue,
     store::{ReactiveContext, RxFunc, SlottedKey, StorageKey, Store},
 };
@@ -48,7 +48,7 @@ pub fn atom<T: 'static, F: Fn() -> () + 'static>(id: StorageKey, data_fn: F) -> 
 pub fn atom_reverse<T: 'static + Clone, F: Fn() -> () + 'static>(
     id: StorageKey,
     data_fn: F,
-) -> AtomReversible<T> {
+) -> ReversibleAtom<T> {
     // we do not need to re-initalize the atom if it already has been stored.
     if !reactive_state_exists_for_id::<T>(id) {
         let reaction = RxFunc {
@@ -78,7 +78,7 @@ pub fn atom_reverse<T: 'static + Clone, F: Fn() -> () + 'static>(
             store_refcell.borrow_mut().add_atom(&id);
         })
     }
-    AtomReversible::new(id)
+    ReversibleAtom::new(id)
 }
 
 //

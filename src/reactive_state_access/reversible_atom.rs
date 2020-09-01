@@ -21,15 +21,15 @@ use std::marker::PhantomData;
 /// use store::RxFunc;
 /// use atomic_hooks::{global_reverse_queue, AtomUndo, GlobalUndo,
 /// CloneReactiveState};
-/// use atomic_hooks::atom_reversible::AtomReversible;
+/// use atomic_hooks::reversible_atom::ReversibleAtom;
 ///
 /// #[atom(reversible)]
-/// fn a() -> AtomReversible<i32> {
+/// fn a() -> ReversibleAtom<i32> {
 ///     0
 /// }
 ///
 /// #[atom(reversible)]
-/// fn b() -> AtomReversible<i32> {
+/// fn b() -> ReversibleAtom<i32> {
 ///    0
 /// }
 ///
@@ -57,7 +57,7 @@ use std::marker::PhantomData;
 ///     assert_eq!(a().get(), 0, "We should get 0 as value for a");
 /// }
 ///  ```
-pub struct AtomReversible<T>
+pub struct ReversibleAtom<T>
 where
     T: Clone,
 {
@@ -65,7 +65,7 @@ where
     pub _phantom_data_stored_type: PhantomData<T>,
 }
 
-impl<T> std::fmt::Debug for AtomReversible<T>
+impl<T> std::fmt::Debug for ReversibleAtom<T>
 where
     T: Clone,
 {
@@ -74,12 +74,12 @@ where
     }
 }
 
-impl<T> Clone for AtomReversible<T>
+impl<T> Clone for ReversibleAtom<T>
 where
     T: Clone,
 {
-    fn clone(&self) -> AtomReversible<T> {
-        AtomReversible::<T> {
+    fn clone(&self) -> ReversibleAtom<T> {
+        ReversibleAtom::<T> {
             id: self.id,
 
             _phantom_data_stored_type: PhantomData::<T>,
@@ -87,7 +87,7 @@ where
     }
 }
 
-impl<T> Observable<T> for AtomReversible<T>
+impl<T> Observable<T> for ReversibleAtom<T>
 where
     T: 'static + Clone,
 {
@@ -96,14 +96,14 @@ where
     }
 }
 
-impl<T> Copy for AtomReversible<T> where T: Clone {}
+impl<T> Copy for ReversibleAtom<T> where T: Clone {}
 
-impl<T> AtomReversible<T>
+impl<T> ReversibleAtom<T>
 where
     T: 'static + Clone,
 {
-    pub fn new(id: StorageKey) -> AtomReversible<T> {
-        AtomReversible {
+    pub fn new(id: StorageKey) -> ReversibleAtom<T> {
+        ReversibleAtom {
             id,
             _phantom_data_stored_type: PhantomData,
         }
@@ -113,13 +113,13 @@ where
     /// observers.
     ///
     /// ```
-    /// use atomic_hooks::{atom_reversible::AtomReversible, reaction::Reaction, Observable};
+    /// use atomic_hooks::{reaction::Reaction, reversible_atom::ReversibleAtom, Observable};
     /// #[atom(reversible)]
-    /// fn a() -> AtomReversible<i32> {
+    /// fn a() -> ReversibleAtom<i32> {
     ///     0
     /// }
     /// #[atom(reversible)]
-    /// fn b() -> AtomReversible<i32> {
+    /// fn b() -> ReversibleAtom<i32> {
     ///     0
     /// }
     ///
@@ -148,9 +148,9 @@ where
         set_inert_atom_reversible_state_with_id(value, self.id);
     }
     /// ```
-    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// use atomic_hooks::reversible_atom::ReversibleAtom;
     /// #[atom(reversible)]
-    /// fn a() -> AtomReversible<i32> {
+    /// fn a() -> ReversibleAtom<i32> {
     ///     0
     /// }
     ///
@@ -171,9 +171,9 @@ where
     /// rerender with the new state. If many components subscribed to the
     /// atom, then all of them will get the update.
     /// ```
-    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// use atomic_hooks::reversible_atom::ReversibleAtom;
     /// #[atom(reversible)]
-    /// fn a() -> AtomReversible<i32> {
+    /// fn a() -> ReversibleAtom<i32> {
     ///     0
     /// }
     /// a().update(|state| *state = 45);
@@ -187,9 +187,9 @@ where
     }
 
     /// ```
-    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// use atomic_hooks::reversible_atom::ReversibleAtom;
     /// #[atom(reversible)]
-    /// fn a() -> AtomReversible<i32> {
+    /// fn a() -> ReversibleAtom<i32> {
     ///     0
     /// }
     ///
@@ -204,9 +204,9 @@ where
     /// Why do we have remove and delete ?
     ///
     /// ```
-    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// use atomic_hooks::reversible_atom::ReversibleAtom;
     /// #[atom(reversible)]
-    /// fn a() -> AtomReversible<i32> {
+    /// fn a() -> ReversibleAtom<i32> {
     ///     0
     /// }
     ///
@@ -219,9 +219,9 @@ where
     }
     /// Reset to the initial value.
     /// ```
-    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// use atomic_hooks::reversible_atom::ReversibleAtom;
     /// #[atom(reversible)]
-    /// fn a() -> AtomReversible<i32> {
+    /// fn a() -> ReversibleAtom<i32> {
     ///     0
     /// }
     ///
@@ -237,9 +237,9 @@ where
         execute_reaction_nodes(&self.id);
     }
     /// ```
-    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// use atomic_hooks::reversible_atom::ReversibleAtom;
     /// #[atom(reversible)]
-    /// fn a() -> AtomReversible<i32> {
+    /// fn a() -> ReversibleAtom<i32> {
     ///     0
     /// }
     ///
@@ -254,9 +254,9 @@ where
 
     /// Allow you to get the state through a reference with a closure.
     /// ```
-    /// use atomic_hooks::atom_reversible::AtomReversible;
+    /// use atomic_hooks::reversible_atom::ReversibleAtom;
     /// #[atom(reversible)]
-    /// fn a() -> AtomReversible<i32> {
+    /// fn a() -> ReversibleAtom<i32> {
     ///     0
     /// }
     /// a().set(3);
@@ -281,7 +281,7 @@ where
     //     }
     // }
 }
-impl<T> CloneReactiveState<T> for AtomReversible<T>
+impl<T> CloneReactiveState<T> for ReversibleAtom<T>
 where
     T: Clone + 'static,
 {
@@ -299,7 +299,7 @@ where
 mod test {
     use super::*;
     use crate::{
-        reactive_state_access::{atom::Atom, atom_reversible::AtomReversible, reaction::Reaction},
+        reactive_state_access::{atom::Atom, reaction::Reaction, reversible_atom::ReversibleAtom},
         *,
     };
 
@@ -319,12 +319,16 @@ mod test {
     // }
 
     #[atom(reversible)]
-    fn a_reversible() -> AtomReversible<i32> {
+    fn c_reversible() -> ReversibleAtom<i32> {
+        0
+    }
+    #[atom(reversible)]
+    fn a_reversible() -> ReversibleAtom<i32> {
         0
     }
 
     #[atom(reversible)]
-    fn b_reversible() -> AtomReversible<i32> {
+    fn b_reversible() -> ReversibleAtom<i32> {
         0
     }
     #[reaction]
@@ -375,7 +379,8 @@ mod test {
         eprintln!("{:?}", b_reversible().get());
         eprintln!("{:?}", global_reverse_queue());
 
-        global_reverse_queue().travel_backwards(); // Why do we need 2 times         global_undo_queue().travel_backwards(); ?
+        global_reverse_queue().travel_backwards(); // Why do we need 2 times
+        global_reverse_queue().travel_backwards();
         eprintln!("{:?}", a_reversible().get());
         eprintln!("{:?}", b_reversible().get());
         eprintln!("{:?}", global_reverse_queue());

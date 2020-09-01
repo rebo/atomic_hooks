@@ -1,8 +1,8 @@
 // If the stored type is clone, then implement clone for ReactiveStateAccess
 pub mod atom;
-pub mod atom_reversible;
 pub mod observable;
 pub mod reaction;
+pub mod reversible_atom;
 pub mod state_access;
 
 pub trait CloneReactiveState<T>

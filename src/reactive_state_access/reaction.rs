@@ -559,7 +559,7 @@ where
 mod test {
     use super::*;
     use crate::{
-        reactive_state_access::{atom::Atom, atom_reversible::AtomReversible, reaction::Reaction},
+        reactive_state_access::{atom::Atom, reaction::Reaction, reversible_atom::ReversibleAtom},
         *,
     };
 
@@ -613,12 +613,12 @@ mod test {
     }
 
     #[atom(reversible)]
-    fn a_reversible() -> AtomReversible<i32> {
+    fn a_reversible() -> ReversibleAtom<i32> {
         0
     }
 
     #[atom(reversible)]
-    fn b_reversible() -> AtomReversible<i32> {
+    fn b_reversible() -> ReversibleAtom<i32> {
         0
     }
     #[test]
