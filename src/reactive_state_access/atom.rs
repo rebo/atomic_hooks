@@ -569,11 +569,9 @@ mod test {
 
     #[test]
     fn test_delete() {
-        a().delete();
-
-        eprintln!("{:?}", a().get());
-
-        assert_eq!(a().state_exists(), false, "The a state should not exist");
+        let a = a();
+        a.delete();
+        assert_eq!(a.state_exists(), false, "The a state should not exist");
     }
 
     #[test]
