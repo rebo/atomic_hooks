@@ -347,19 +347,6 @@ mod test {
         b_reversible().get_with(|v| assert_eq!(v, &5, "We should get 5"));
     }
 
-    // #[test]
-    // fn test_on_update() {
-    //     let print = count_print_when_update();
-    //     a_reversible().update(|v| *v = 32);
-    //     a_reversible().set(2);
-    //     a_reversible().set(25);
-    //     a_reversible().set(1);
-    //
-    //     println!("{:?}", print.get());
-    //
-    //     assert_eq!(print.get(), 5)
-    // }
-
     #[test]
     fn test_undo() {
         a_reversible().set(3);
@@ -372,29 +359,18 @@ mod test {
 
         assert_eq!(a_reversible().get(), 4, "We should get 4 as value for a");
         global_reverse_queue().travel_backwards();
+
         assert_eq!(b_reversible().get(), 10, "We should get 10 as value for b");
         global_reverse_queue().travel_backwards();
-        assert_eq!(a_reversible().get(), 5, "We should get 5 as value for a");
-        eprintln!("{:?}", a_reversible().get());
-        eprintln!("{:?}", b_reversible().get());
-        eprintln!("{:?}", global_reverse_queue());
 
-        global_reverse_queue().travel_backwards(); // Why do we need 2 times
+        assert_eq!(a_reversible().get(), 5, "We should get 5 as value for a");
         global_reverse_queue().travel_backwards();
-        eprintln!("{:?}", a_reversible().get());
-        eprintln!("{:?}", b_reversible().get());
-        eprintln!("{:?}", global_reverse_queue());
-        global_reverse_queue().travel_backwards();
-        global_reverse_queue().travel_backwards();
+
         assert_eq!(a_reversible().get(), 3, "We should get 3 as value for a");
-        eprintln!("{:?}", a_reversible().get());
-        eprintln!("{:?}", b_reversible().get());
-        eprintln!("{:?}", global_reverse_queue());
         global_reverse_queue().travel_backwards();
-        global_reverse_queue().travel_backwards();
+
         assert_eq!(a_reversible().get(), 0, "We should get 0 as value for a");
     }
-
     #[test]
     fn test_update() {
         a_reversible().set(10);
