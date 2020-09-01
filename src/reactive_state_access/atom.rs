@@ -39,9 +39,7 @@ where
     /// observers.
     ///
     /// ```
-    /// use atomic_hooks::atom::Atom;
-    /// use atomic_hooks::Observable;
-    /// use atomic_hooks::reaction::Reaction;
+    /// use atomic_hooks::{atom::Atom, reaction::Reaction, Observable};
     /// #[atom]
     /// fn a() -> Atom<i32> {
     ///     0
@@ -50,7 +48,7 @@ where
     ///     0
     /// }
     /// #[reaction]
-    /// fn reaction_a_b_subtraction() -> Reaction<i32>{
+    /// fn reaction_a_b_subtraction() -> Reaction<i32> {
     ///     let a = a().observe();
     ///     let b = b().observe();
     ///     a - b
@@ -411,9 +409,10 @@ where
     }
 }
 
-use crate::reactive_state_access::{CloneReactiveState, ObserveChangeReactiveState};
 use crate::{
-    clone_reactive_state_with_id, reactive_state_exists_for_id,
+    clone_reactive_state_with_id,
+    reactive_state_access::{CloneReactiveState, ObserveChangeReactiveState},
+    reactive_state_exists_for_id,
     reactive_state_functions::{execute_reaction_nodes, set_atom_state_with_id},
     read_reactive_state_with_id, remove_reactive_state_with_id, set_inert_atom_state_with_id,
     store::StorageKey,
