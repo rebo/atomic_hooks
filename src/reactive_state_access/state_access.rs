@@ -1,4 +1,4 @@
-use crate::{hooks_state_functions::*, store::TopoKey};
+use crate::{hooks_state_functions::*, store::TopoKey, Observable};
 use std::marker::PhantomData;
 
 ///  Accessor struct that provides access to getting and setting the
@@ -122,6 +122,7 @@ where
     }
 }
 
+use crate::store::StorageKey;
 use std::ops::{Add, Div, Mul, Sub};
 
 impl<T> Add for StateAccess<T>
@@ -165,5 +166,14 @@ where
 
     fn sub(self, other: Self) -> Self::Output {
         self.get_with(|s| other.get_with(|o| *o - *s))
+    }
+}
+
+impl<T> Observable<T> for StateAccess<T>
+where
+    T: 'static,
+{
+    fn id(&self) -> StorageKey {
+        StorageKey::TopoKey(self.id)
     }
 }

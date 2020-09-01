@@ -1,5 +1,5 @@
-use crate::*;
-use atomic_hooks_macros::*;
+use crate::{atom::Atom, *};
+
 use store::RxFunc;
 
 #[derive(Default, Clone)]
@@ -11,17 +11,20 @@ pub struct UndoStore {
 #[derive(Clone)]
 pub struct Command {
     do_cmd: RxFunc,
-    undo_cmd: RxFunc,
+    reverse_cmd: RxFunc,
 }
 
 impl Command {
     pub fn new(do_cmd: RxFunc, undo_cmd: RxFunc) -> Self {
-        Self { do_cmd, undo_cmd }
+        Self {
+            do_cmd,
+            reverse_cmd: undo_cmd,
+        }
     }
 }
 
 #[atom]
-pub fn global_undo_queue() -> Atom<UndoStore> {
+pub fn global_reverse_queue() -> Atom<UndoStore> {
     UndoStore::default()
 }
 pub trait GlobalUndo {
@@ -44,7 +47,7 @@ impl GlobalUndo for Atom<UndoStore> {
             if cursor > queue.cursor {
                 while cursor < queue.cursor {
                     if queue.cursor > 0 {
-                        (queue.commands[queue.cursor - 1].undo_cmd.func)();
+                        (queue.commands[queue.cursor - 1].reverse_cmd.func)();
                         queue.cursor -= 1;
                     }
                 }
@@ -62,7 +65,7 @@ impl GlobalUndo for Atom<UndoStore> {
     fn travel_backwards(&self) {
         update_atom_state_with_id::<UndoStore, _>(self.id, |queue| {
             if queue.cursor > 0 {
-                (queue.commands[queue.cursor - 1].undo_cmd.func)();
+                (queue.commands[queue.cursor - 1].reverse_cmd.func)();
                 queue.cursor -= 1;
             }
         });

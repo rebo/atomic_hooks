@@ -4,7 +4,6 @@ pub mod store;
 
 // hooks
 mod hooks_state_functions;
-mod state_access;
 
 // reactive state
 
@@ -14,9 +13,8 @@ pub mod reactive_state_functions;
 
 // helpers
 mod helpers;
-mod observable;
 // mod seed_integration;
-pub mod undo;
+pub mod reverse;
 
 // public exports
 mod prelude;

@@ -2,6 +2,7 @@
 fn tests() {
     let t = trybuild::TestCases::new();
     t.pass("tests/01-basic_atom_reaction.rs");
+    t.pass("tests/reversible_atom");
     //t.pass("tests/02-parse-body.rs");
     //t.compile_fail("tests/03-expand-four-errors.rs");
     //t.pass("tests/04-paste-ident.rs");

@@ -1,7 +1,7 @@
 use crate::{
-    reactive_state_access::{Atom, AtomUndo, Reaction},
+    reactive_state_access::{atom::Atom, reaction::Reaction, reversible_atom::ReversibleAtom},
+    reverse::global_reverse_queue,
     store::{ReactiveContext, RxFunc, SlottedKey, StorageKey, Store},
-    undo::global_undo_queue,
 };
 use std::{cell::RefCell, hash::Hash, rc::Rc};
 
@@ -45,10 +45,10 @@ pub fn atom<T: 'static, F: Fn() -> () + 'static>(id: StorageKey, data_fn: F) -> 
     Atom::new(id)
 }
 
-pub fn atom_undo<T: 'static + Clone, F: Fn() -> () + 'static>(
+pub fn atom_reverse<T: 'static + Clone, F: Fn() -> () + 'static>(
     id: StorageKey,
     data_fn: F,
-) -> AtomUndo<T> {
+) -> ReversibleAtom<T> {
     // we do not need to re-initalize the atom if it already has been stored.
     if !reactive_state_exists_for_id::<T>(id) {
         let reaction = RxFunc {
@@ -63,8 +63,8 @@ pub fn atom_undo<T: 'static + Clone, F: Fn() -> () + 'static>(
 
         (reaction.func.clone())();
 
-        crate::undo::global_undo_queue().update(|u| {
-            u.commands.push(crate::undo::Command::new(
+        crate::reverse::global_reverse_queue().update(|u| {
+            u.commands.push(crate::reverse::Command::new(
                 reaction,
                 RxFunc {
                     func: Rc::new(move || {
@@ -78,7 +78,7 @@ pub fn atom_undo<T: 'static + Clone, F: Fn() -> () + 'static>(
             store_refcell.borrow_mut().add_atom(&id);
         })
     }
-    AtomUndo::new(id)
+    ReversibleAtom::new(id)
 }
 
 //
@@ -172,13 +172,13 @@ pub fn set_inert_atom_state_with_id<T: 'static>(data: T, id: StorageKey) {
 }
 
 /// Sets the state of type T keyed to the given TopoId
-pub fn set_inert_atom_state_with_id_with_undo<T: 'static + Clone>(data: T, id: StorageKey) {
+pub fn set_inert_atom_reversible_state_with_id<T: 'static + Clone>(data: T, id: StorageKey) {
     let new_data = data.clone();
     if let Some(previous_state) = clone_reactive_state_with_id::<T>(id) {
-        global_undo_queue().update(|u| {
+        global_reverse_queue().update(|u| {
             u.commands.truncate(u.cursor);
 
-            u.commands.push(crate::undo::Command::new(
+            u.commands.push(crate::reverse::Command::new(
                 RxFunc::new(move || {
                     set_inert_atom_state_with_id::<T>(new_data.clone(), id);
                 }),
@@ -189,10 +189,10 @@ pub fn set_inert_atom_state_with_id_with_undo<T: 'static + Clone>(data: T, id: S
             u.cursor += 1;
         })
     } else {
-        global_undo_queue().update(|u| {
+        global_reverse_queue().update(|u| {
             u.commands.truncate(u.cursor);
 
-            u.commands.push(crate::undo::Command::new(
+            u.commands.push(crate::reverse::Command::new(
                 RxFunc::new(move || {
                     set_inert_atom_state_with_id::<T>(new_data.clone(), id);
                 }),
@@ -215,13 +215,13 @@ pub fn set_atom_state_with_id<T: 'static>(data: T, id: StorageKey) {
 }
 
 /// Sets the state of type T keyed to the given TopoId
-pub fn set_atom_state_with_id_with_undo<T: 'static + Clone>(data: T, id: StorageKey) {
+pub fn set_atom_reversible_state_with_id<T: 'static + Clone>(data: T, id: StorageKey) {
     let new_data = data.clone();
     if let Some(previous_state) = clone_reactive_state_with_id::<T>(id) {
-        global_undo_queue().update(|u| {
+        global_reverse_queue().update(|u| {
             u.commands.truncate(u.cursor);
 
-            u.commands.push(crate::undo::Command::new(
+            u.commands.push(crate::reverse::Command::new(
                 RxFunc::new(move || {
                     set_atom_state_with_id::<T>(new_data.clone(), id);
                 }),
@@ -232,10 +232,10 @@ pub fn set_atom_state_with_id_with_undo<T: 'static + Clone>(data: T, id: Storage
             u.cursor += 1;
         })
     } else {
-        global_undo_queue().update(|u| {
+        global_reverse_queue().update(|u| {
             u.commands.truncate(u.cursor);
 
-            u.commands.push(crate::undo::Command::new(
+            u.commands.push(crate::reverse::Command::new(
                 RxFunc::new(move || {
                     set_atom_state_with_id::<T>(new_data.clone(), id);
                 }),
@@ -270,12 +270,12 @@ pub fn remove_reactive_state_with_id<T: 'static>(id: StorageKey) -> Option<T> {
     STORE.with(|store_refcell| store_refcell.borrow_mut().remove_state_with_id::<T>(&id))
 }
 
-pub fn remove_reactive_state_with_id_with_undo<T: 'static + Clone>(id: StorageKey) -> Option<T> {
+pub fn remove_reactive_reversible_state_with_id<T: 'static + Clone>(id: StorageKey) -> Option<T> {
     if let Some(previous_state) = clone_reactive_state_with_id::<T>(id) {
-        global_undo_queue().update(|u| {
+        global_reverse_queue().update(|u| {
             u.commands.truncate(u.cursor);
 
-            u.commands.push(crate::undo::Command::new(
+            u.commands.push(crate::reverse::Command::new(
                 RxFunc::new(move || {
                     remove_reactive_state_with_id::<T>(id);
                 }),
@@ -286,7 +286,7 @@ pub fn remove_reactive_state_with_id_with_undo<T: 'static + Clone>(id: StorageKe
             u.cursor += 1;
         })
     } else {
-        global_undo_queue().update(|u| {
+        global_reverse_queue().update(|u| {
             u.cursor += 1;
         })
     }
@@ -325,7 +325,7 @@ where
     execute_reaction_nodes(&id);
 }
 
-pub fn update_atom_state_with_id_with_undo<T: 'static, F: FnOnce(&mut T) -> ()>(
+pub fn update_atom_reversible_state_with_id<T: 'static, F: FnOnce(&mut T) -> ()>(
     id: StorageKey,
     func: F,
 ) where
@@ -338,10 +338,10 @@ pub fn update_atom_state_with_id_with_undo<T: 'static, F: FnOnce(&mut T) -> ()>(
     func(&mut item);
 
     let new_item = item.clone();
-    global_undo_queue().update(|u| {
+    global_reverse_queue().update(|u| {
         u.commands.truncate(u.cursor);
 
-        u.commands.push(crate::undo::Command::new(
+        u.commands.push(crate::reverse::Command::new(
             RxFunc::new(move || {
                 set_inert_atom_state_with_id::<T>(new_item.clone(), id);
             }),
