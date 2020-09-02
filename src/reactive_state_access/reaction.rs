@@ -690,19 +690,19 @@ mod test {
     #[test]
     fn test_on_update_reaction() {
         let count = count_subtraction_when_update();
-        println!("{:?}", a_b_subtraction().get());
+        println!("subtraction value -> {:?}", a_b_subtraction().get());
         a().update(|v| *v = 32);
-        println!("{:?}", a_b_subtraction().get());
+        println!("subtraction value -> {:?}", a_b_subtraction().get());
         a().set(2);
-        println!("{:?}", a_b_subtraction().get());
+        println!("subtraction value -> {:?}", a_b_subtraction().get());
         a().set(25);
-        println!("{:?}", a_b_subtraction().get());
+        println!("subtraction value -> {:?}", a_b_subtraction().get());
         a().set(1);
-        println!("{:?}", a_b_subtraction().get());
+        println!("subtraction value -> {:?}", a_b_subtraction().get());
 
-        println!("{:?}", count.get());
+        println!("number of updates-> {:?}", count.get());
 
-        assert_eq!(count.get(), 5);
+        assert_eq!(count.get(), 5, "We should get 5 update counted");
     }
 
     #[test]
@@ -782,10 +782,17 @@ mod test {
         );
 
         global_reverse_queue().travel_backwards();
+
+        assert_eq!(
+            a_reversible().get(),
+            0,
+            "We should get 0 on a because back in time"
+        );
+
         assert_eq!(
             a_b_reversible_subtraction.get(),
             0,
-            "We should get 0 because back in time"
+            "We should get 0 as result for subtraction because back in time"
         );
 
         b_reversible().inert_set(0);
