@@ -725,10 +725,11 @@ mod test {
 
     #[test]
     fn test_delete() {
-        a_b_subtraction().delete();
+        let subtraction_reaction = a_b_subtraction();
+        subtraction_reaction.delete();
 
         assert_eq!(
-            a_b_subtraction().state_exists(),
+            subtraction_reaction.state_exists(),
             false,
             "The state  a_b_subtraction should not exist"
         );
