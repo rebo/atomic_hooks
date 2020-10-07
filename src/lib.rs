@@ -8,7 +8,7 @@ mod hooks_state_functions;
 // reactive state
 
 mod marker;
-pub mod reactive_state_access;
+mod reactive_state_access;
 pub mod reactive_state_functions;
 
 // helpers
