@@ -395,12 +395,10 @@ mod test {
 
     #[test]
     fn test_delete() {
-        a_reversible().delete();
-
-        eprintln!("{:?}", a_reversible().get());
-
+        let a = a_reversible();
+        a.delete();
         assert_eq!(
-            a_reversible().state_exists(),
+            a.state_exists(),
             false,
             "The state  a_reversible should not exist"
         );

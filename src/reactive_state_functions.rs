@@ -188,20 +188,6 @@ pub fn set_inert_atom_reversible_state_with_id<T: 'static + Clone>(data: T, id: 
             ));
             u.cursor += 1;
         })
-    } else {
-        global_reverse_queue().update(|u| {
-            u.commands.truncate(u.cursor);
-
-            u.commands.push(crate::reverse::Command::new(
-                RxFunc::new(move || {
-                    set_inert_atom_state_with_id::<T>(new_data.clone(), id);
-                }),
-                RxFunc::new(move || {
-                    remove_reactive_state_with_id::<T>(id);
-                }),
-            ));
-            u.cursor += 1;
-        })
     }
 
     STORE.with(|store_refcell| store_refcell.borrow_mut().set_state_with_id::<T>(data, &id))
